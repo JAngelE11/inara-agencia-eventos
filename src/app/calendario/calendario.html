@@ -1,0 +1,100 @@
+<div class="container d-flex justify-content-center align-items-center mt-5 mb-5">
+  <div class="card p-4 shadow-sm text-center" style="width: 100%; max-width: 400px; border-radius: 15px; border: none;">
+    
+    <div class="text-start mb-3">
+      <a routerLink="/panel-cliente" class="text-muted text-decoration-none small fw-bold" style="cursor: pointer;">
+        ← Volver a mi Panel
+      </a>
+    </div>
+
+    <h2 class="fw-bold mb-3">Selecciona tu Fecha 📅</h2>
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <button class="btn btn-light rounded-circle fw-bold shadow-sm" (click)="cambiarMes(-1)">&lt;</button>
+      <h5 class="fw-bold mb-0" style="text-transform: uppercase; color: #0d6efd;">{{ nombreMesActual }} DEL {{ anioActual }}</h5>
+      <button class="btn btn-light rounded-circle fw-bold shadow-sm" (click)="cambiarMes(1)">&gt;</button>
+    </div>
+
+    <div class="d-flex justify-content-between mb-2 text-muted fw-bold" style="font-size: 0.9rem;">
+      <div style="width: 14%;">Do</div><div style="width: 14%;">Lu</div><div style="width: 14%;">Ma</div>
+      <div style="width: 14%;">Mi</div><div style="width: 14%;">Ju</div><div style="width: 14%;">Vi</div><div style="width: 14%;">Sa</div>
+    </div>
+    
+    <div class="d-flex flex-wrap justify-content-start mb-4" style="gap: 2%; row-gap: 10px;">
+      
+      <div *ngFor="let vacio of diasVacios" style="width: 12.5%;"></div>
+      
+      <button *ngFor="let dia of dias" 
+              class="btn rounded-circle p-0 fw-bold" 
+              [ngClass]="{
+                'text-white shadow': dia === diaSeleccionado,
+                'btn-outline-dark text-secondary': dia !== diaSeleccionado && !esDiaInvalido(dia),
+                'text-muted': esDiaInvalido(dia)
+              }"
+              [style.background-color]="dia === diaSeleccionado ? '#198754' : 'transparent'"
+              [style.border-color]="dia === diaSeleccionado ? '#198754' : (esDiaInvalido(dia) ? 'transparent' : '#ddd')"
+              [style.opacity]="esDiaInvalido(dia) ? '0.4' : '1'"
+              [style.cursor]="esDiaInvalido(dia) ? 'not-allowed' : 'pointer'"
+              (click)="seleccionarDia(dia)"
+              style="width: 12.5%; aspect-ratio: 1; font-size: 0.95rem;">
+        {{ dia }}
+      </button>
+    </div>
+
+    <h5 class="fw-bold mb-3 mt-2">¿A qué hora? 🕒</h5>
+    
+    <div *ngIf="!diaSeleccionado" class="text-muted mb-4 small">
+      Selecciona un día para ver las horas. (Domingos cerrado)
+    </div>
+
+    <div *ngIf="cargandoHoras" class="text-primary mb-4 small fw-bold">
+      Revisando disponibilidad en la agenda...
+    </div>
+
+    <div *ngIf="diaSeleccionado && !cargandoHoras && horasDisponibles.length === 0" class="text-danger mb-4 small fw-bold">
+      No hay horas disponibles para este día.
+    </div>
+
+    <div *ngIf="diaSeleccionado && !cargandoHoras" class="d-flex justify-content-center flex-wrap gap-2 mb-4">
+      <button *ngFor="let hora of horasDisponibles"
+              class="btn rounded-pill px-4"
+              [ngClass]="hora === horaSeleccionada ? 'btn-secondary text-white shadow' : 'btn-outline-secondary'"
+              (click)="seleccionarHora(hora)">
+        {{ hora }}
+      </button>
+    </div>
+
+    <div class="mb-3 text-start" *ngIf="horaSeleccionada">
+      <label class="form-label fw-bold text-secondary small">¿Qué tipo de evento es? *</label>
+      <select class="form-select border-success shadow-sm" [(ngModel)]="tipoEvento" name="tipoEvento">
+        <option value="" disabled selected>Selecciona una opción...</option>
+        <option value="Matrimonio">Matrimonio</option>
+        <option value="15 Años">15 Años</option>
+        <option value="50 Años">50 Años</option>
+        <option value="Cumplekids">Cumplekids</option>
+        <option value="Baby Shower">Baby Shower</option>
+        <option value="Bautizo / Comunión">Bautizo / Comunión</option>
+        <option value="Graduación">Graduación</option>
+        <option value="Evento Corporativo">Evento Corporativo</option>
+        <option value="Otros eventos u cumpleaños">Otros eventos u cumpleaños</option>
+      </select>
+    </div>
+
+    <div class="mb-4 text-start" *ngIf="horaSeleccionada">
+      <label class="form-label fw-bold text-secondary small">¿Cómo prefieres la asesoría? *</label>
+      <select class="form-select border-primary shadow-sm" [(ngModel)]="modalidad" name="modalidad">
+        <option value="" disabled selected>Selecciona la modalidad...</option>
+        <option value="Presencial en oficina">🏢 Presencial en oficina</option>
+        <option value="Virtual Zoom">💻 Virtual Zoom</option>
+      </select>
+    </div>
+
+    <button class="btn text-white w-100 fw-bold mb-2 shadow-sm" 
+            style="background-color: #198754; padding: 12px; border-radius: 8px;"
+            [disabled]="!horaSeleccionada || !tipoEvento || !modalidad"
+            (click)="confirmarCita()">
+      Confirmar Reserva
+    </button>
+    
+  </div>
+</div>

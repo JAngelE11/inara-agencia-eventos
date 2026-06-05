@@ -1,0 +1,17 @@
+/* Esto hace que todas las imágenes de servicios sean iguales */
+.img-servicio {
+  width: 100%;
+  height: 300px; /* Ajusta este valor si las quieres más altas o bajas */
+  object-fit: cover; /* Corta la imagen para que llene el cuadro sin deformarse */
+  border-radius: 15px; /* Mantiene tus bordes redondeados */
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+.card-dinamica {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.card-dinamica:hover {
+  transform: translateY(-10px); /* La tarjeta sube un poco */
+  box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; /* La sombra se hace más grande */
+}

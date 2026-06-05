@@ -1,0 +1,171 @@
+<div class="container mt-5 mb-5" style="min-height: 80vh;">
+  <!-- ================= CABECERA CON BRANDING ================= -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    
+    <!-- ✅ LOGO INARA + TÍTULO -->
+    <div class="d-flex align-items-center">
+      <div>
+        <h3 class="fw-bold mb-0 text-success" style="letter-spacing: 2px; line-height: 1;">INARA</h3>
+        <span class="text-muted fw-bold" style="font-size: 0.75rem;">Agencia de Eventos</span>
+      </div>
+      <div class="mx-3 border-start border-2" style="height: 35px;"></div>
+      <h4 class="fw-bold m-0 text-dark">Panel de Control ⚙️</h4>
+    </div>
+
+    <!-- ✅ BOTONES -->
+    <div>
+      <a routerLink="/inicio" class="text-muted fw-bold text-decoration-none small me-3" style="cursor: pointer;">
+        ← Volver al Inicio
+      </a>
+      <a (click)="cerrarSesion()" class="text-danger fw-bold text-decoration-none small shadow-sm px-3 py-2 bg-white rounded-pill border" style="cursor: pointer;">
+        Cerrar Sesión 🔒
+      </a>
+    </div>
+  </div>
+  <!-- ================= FIN DE CABECERA ================= -->
+
+  <!-- LOADER -->
+  <div *ngIf="cargando" class="text-center my-5">
+    <div class="spinner-border text-success" role="status"></div>
+    <p class="text-muted mt-2">Cargando datos...</p>
+  </div>
+
+  <div *ngIf="!cargando">
+    <div class="row mb-4">
+      <!-- Total Citas -->
+      <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-light text-center h-100 p-4" style="border-radius: 15px;">
+          <h5 class="fw-bold text-secondary mb-3">Total Reservas Activas</h5>
+          <h1 class="display-2 fw-bold text-success m-0">{{ totalCitas }}</h1>
+        </div>
+      </div>
+      
+      <!-- Progress bars -->
+      <div class="col-md-8">
+        <div class="card shadow-sm border-0 h-100 p-4" style="border-radius: 15px;">
+          <h5 class="fw-bold mb-4">Tendencia de Eventos</h5>
+          <div class="row">
+            <!-- Col 1 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>💍 Matrimonios ({{ statsEventos['Matrimonio'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Matrimonio']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['Matrimonio'])"></div></div>
+            </div>
+            <!-- Col 2 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>👗 15 Años ({{ statsEventos['15 Años'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['15 Años']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['15 Años'])"></div></div>
+            </div>
+            <!-- Col 3 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>🥂 50 Años ({{ statsEventos['50 Años'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['50 Años']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['50 Años'])"></div></div>
+            </div>
+            <!-- Col 4 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>🎈 Cumplekids ({{ statsEventos['Cumplekids'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Cumplekids']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['Cumplekids'])"></div></div>
+            </div>
+            <!-- Col 5 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>🍼 Baby Shower ({{ statsEventos['Baby Shower'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Baby Shower']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['Baby Shower'])"></div></div>
+            </div>
+            <!-- Col 6 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>🕊️ Bautizo / Comunión ({{ statsEventos['Bautizo / Comunión'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Bautizo / Comunión']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['Bautizo / Comunión'])"></div></div>
+            </div>
+            <!-- Col 7 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>🎓 Graduación ({{ statsEventos['Graduación'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Graduación']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-dark" [style.width.%]="calcularPorcentaje(statsEventos['Graduación'])"></div></div>
+            </div>
+            <!-- Col 8 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>💼 Evento Corporativo ({{ statsEventos['Evento Corporativo'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Evento Corporativo']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['Evento Corporativo'])"></div></div>
+            </div>
+            <!-- Col 9 -->
+            <div class="col-md-6 mb-3">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span>🎉 Otros eventos u cumpleaños ({{ statsEventos['Otros eventos u cumpleaños'] }})</span>
+                <span>{{ calcularPorcentaje(statsEventos['Otros eventos u cumpleaños']) }}%</span>
+              </div>
+              <div class="progress" style="height: 8px;"><div class="progress-bar bg-secondary" [style.width.%]="calcularPorcentaje(statsEventos['Otros eventos u cumpleaños'])"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de Reservas -->
+    <div class="card shadow-sm border-0 p-4" style="border-radius: 15px;">
+      <h5 class="fw-bold mb-4">Agenda General de Citas</h5>
+      
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr class="text-secondary small">
+              <th>Cliente</th>
+              <th>Contacto</th>
+              <th>Detalles del Evento</th>
+              <th>Programación</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let reserva of reservas">
+              <td>
+                <div class="fw-bold">{{ reserva.nombre }} {{ reserva.apellidos }}</div>
+                <div class="small text-muted">✉️ {{ reserva.correo }}</div>
+              </td>
+              <td>
+                <div class="small">📱 {{ reserva.celular }}</div>
+              </td>
+              <td>
+                <span class="badge bg-success me-2">{{ reserva.tipoEvento }}</span>
+                <span class="badge bg-info text-dark">{{ reserva.modalidad }}</span>
+              </td>
+              <td>
+                <div class="fw-bold small">📅 {{ reserva.fechaAsignada }}</div>
+                <div class="small text-white bg-dark d-inline-block px-2 py-1 rounded mt-1">⏰ {{ reserva.horaAsignada }}</div>
+              </td>
+              <td>
+                <button class="btn btn-outline-danger btn-sm fw-bold" (click)="cancelarCita(reserva.id, reserva.nombre)">
+                  🗑️ Cancelar
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="reservas.length === 0">
+              <td colspan="5" class="text-center text-muted py-4">No hay reservas activas en este momento.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

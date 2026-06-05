@@ -1,0 +1,64 @@
+<div class="container d-flex justify-content-center align-items-center mt-5 mb-5" style="min-height: 80vh;">
+  
+  <!-- ✅ LOADER MIENTRAS FIREBASE REVISA LA SESIÓN -->
+  <div *ngIf="revisandoSesion" class="text-center">
+    <div class="spinner-border text-success mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+    <h5 class="fw-bold text-secondary">Verificando sesión...</h5>
+  </div>
+
+  <!-- ✅ EL FORMULARIO SOLO CARGA SI NO HAY SESIÓN -->
+  <div *ngIf="!revisandoSesion" class="card p-4 shadow-sm text-center" style="width: 100%; max-width: 400px; border-radius: 15px; border: none;">
+    
+    <h2 class="fw-bold mb-0 text-success" style="letter-spacing: 2px;">INARA</h2>
+    <p class="text-muted mb-4 small fw-bold">Agencia de Eventos</p>
+    
+    <h4 class="fw-bold mb-4">Iniciar Sesión 🔒</h4>
+    
+    <form>
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold text-secondary small">Correo Electrónico</label>
+        <input type="email" class="form-control" placeholder="correo@ejemplo.com" [(ngModel)]="correo" name="correo">
+      </div>
+      
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold text-secondary small">Contraseña</label>
+        <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+          <input [type]="mostrarClave ? 'text' : 'password'" class="form-control border-end-0" placeholder="********" [(ngModel)]="contrasena" name="contrasena" (keydown.enter)="iniciarSesion()">
+          <button class="btn btn-outline-secondary border-start-0 bg-white" type="button" (click)="toggleClave()">
+            {{ mostrarClave ? '🙈' : '👁️' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="text-end mb-4">
+        <a (click)="recuperarContrasena()" class="small fw-bold text-muted" style="cursor: pointer; text-decoration: underline;">¿Olvidaste tu contraseña?</a>
+      </div>
+
+      <button type="button" class="btn w-100 fw-bold text-white shadow-sm" style="background-color: #198754; padding: 12px; border-radius: 8px;" (click)="iniciarSesion()">
+        Entrar
+      </button>
+
+      <div class="d-flex align-items-center my-4">
+        <hr class="flex-grow-1 m-0">
+        <span class="mx-3 text-muted small fw-bold">O entra con</span>
+        <hr class="flex-grow-1 m-0">
+      </div>
+
+      <button type="button" class="btn btn-light w-100 fw-bold border shadow-sm mb-4 d-flex justify-content-center align-items-center" style="padding: 10px; border-radius: 8px;" (click)="iniciarSesionGoogle()">
+        <img src="https://www.svgrepo.com/show/475656/google-color.svg" width="20" class="me-2" alt="Google">
+        Continuar con Google
+      </button>
+    </form>
+
+    <div class="mt-2 mb-3">
+      <small class="text-muted">¿Eres nuevo?</small>
+      <a routerLink="/registro" class="fw-bold ms-1" style="color: #198754; text-decoration: none; cursor: pointer;">
+        Crea tu cuenta aquí
+      </a>
+    </div>
+
+    <a routerLink="/inicio" class="text-muted fw-bold" style="cursor: pointer; font-size: 0.9rem; text-decoration: none;">
+      ← Volver al Inicio
+    </a>
+  </div>
+</div>

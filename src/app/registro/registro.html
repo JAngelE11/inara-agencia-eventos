@@ -1,0 +1,52 @@
+<div class="container d-flex justify-content-center align-items-center mt-5 mb-5" style="min-height: 80vh;">
+  <div class="card p-4 shadow-sm text-center" style="width: 100%; max-width: 450px; border-radius: 15px; border: none;">
+    
+    <h2 class="fw-bold mb-4">Crear Cuenta 🚀</h2>
+    
+    <form>
+      <div class="row mb-3 text-start">
+        <div class="col-6">
+          <label class="form-label fw-bold text-secondary small">Nombre</label>
+          <input type="text" class="form-control" placeholder="Ej. Carlos" [(ngModel)]="nombre" name="nombre">
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-bold text-secondary small">Apellidos</label>
+          <input type="text" class="form-control" placeholder="Ej. Pérez" [(ngModel)]="apellidos" name="apellidos">
+        </div>
+      </div>
+
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold text-secondary small">Número de Celular</label>
+        <input type="text" class="form-control" placeholder="Ej. 999888777" [(ngModel)]="celular" name="celular">
+      </div>
+      
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold text-secondary small">Correo Electrónico</label>
+        <input type="email" class="form-control" placeholder="correo@ejemplo.com" [(ngModel)]="correo" name="correo">
+      </div>
+      
+      <div class="mb-4 text-start">
+        <label class="form-label fw-bold text-secondary small">Contraseña</label>
+        <input type="password" class="form-control" placeholder="********" [(ngModel)]="contrasena" name="contrasena" (keydown.enter)="registrar()">
+      </div>
+
+      <button type="button" 
+              class="btn w-100 fw-bold text-white mb-3 shadow-sm" 
+              style="background-color: #198754; padding: 12px; border-radius: 8px;" 
+              (click)="registrar()">
+        Registrarme
+      </button>
+    </form>
+
+    <div class="mt-2 mb-3">
+      <small class="text-muted">¿Ya tienes cuenta?</small>
+      <a routerLink="/login" class="fw-bold ms-1" style="color: #198754; text-decoration: none; cursor: pointer;">
+        Inicia Sesión aquí
+      </a>
+    </div>
+
+    <a routerLink="/inicio" class="text-muted fw-bold" style="cursor: pointer; font-size: 0.9rem; text-decoration: none;">
+      ← Volver al Inicio
+    </a>
+  </div>
+</div>

@@ -1,0 +1,66 @@
+<div class="container d-flex justify-content-center align-items-center mt-5 mb-5" style="min-height: 80vh;">
+  <div class="card p-4 shadow-sm" style="width: 100%; max-width: 500px; border-radius: 15px; border: none;">
+    
+    <div class="d-flex justify-content-between mb-3 w-100">
+      <a routerLink="/inicio" class="text-muted text-decoration-none small" style="cursor: pointer;">
+        ← Volver al Inicio
+      </a>
+      <a (click)="cerrarSesion()" class="text-danger fw-bold text-decoration-none small" style="cursor: pointer;">
+        Cerrar Sesión 🔒
+      </a>
+    </div>
+
+    <h2 class="fw-bold text-center mb-1">Reserva tu Evento</h2>
+    
+    <div class="text-center text-muted mb-4 mt-4" *ngIf="cargandoDatos">
+      <div class="spinner-border text-success spinner-border-sm me-2" role="status"></div>
+      Cargando tu perfil...
+    </div>
+    
+    <form *ngIf="!cargandoDatos">
+      
+      <p class="text-center text-success fw-bold small mb-4">¡Hola de nuevo, {{ nombre }}!</p>
+
+      <div class="row mb-3 text-start">
+        <div class="col-md-6">
+          <label class="form-label fw-bold text-secondary" style="font-size: 0.9rem;">Nombre</label>
+          <input type="text" class="form-control text-muted" [(ngModel)]="nombre" name="nombre" readonly style="background-color: #f1f3f5;">
+        </div>
+        <div class="col-md-6 mt-3 mt-md-0">
+          <label class="form-label fw-bold text-secondary" style="font-size: 0.9rem;">Apellidos</label>
+          <input type="text" class="form-control text-muted" [(ngModel)]="apellidos" name="apellidos" readonly style="background-color: #f1f3f5;">
+        </div>
+      </div>
+
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold text-secondary" style="font-size: 0.9rem;">Número de Celular</label>
+        <input type="text" class="form-control text-muted" [(ngModel)]="celular" name="celular" readonly style="background-color: #f1f3f5;">
+      </div>
+
+      <div class="mb-3 text-start">
+        <label class="form-label fw-bold text-secondary" style="font-size: 0.9rem;">Correo Electrónico</label>
+        <input type="email" class="form-control text-muted" [(ngModel)]="correo" name="correo" readonly style="background-color: #f1f3f5;">
+      </div>
+
+      <div class="mb-4 text-start">
+        <label class="form-label fw-bold text-secondary" style="font-size: 0.9rem;">Tipo de Evento *</label>
+        <select class="form-select border-success shadow-sm" [(ngModel)]="tipoEvento" name="tipoEvento">
+          <option value="" disabled selected>Selecciona una opción...</option>
+          <option value="Matrimonio">Matrimonio</option>
+          <option value="15 Años">15 Años</option>
+          <option value="50 Años">50 Años</option>
+          <option value="Cumplekids">Cumplekids</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+
+      <button type="button" 
+              class="btn w-100 fw-bold text-white mb-2 shadow-sm" 
+              style="background-color: #198754; padding: 12px; border-radius: 8px;" 
+              (click)="continuar()">
+        Continuar al Calendario
+      </button>
+      
+    </form>
+  </div>
+</div>

@@ -1,0 +1,21 @@
+/* Estilo para que todo el sitio se vea moderno */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+}
+
+.btn-success {
+  background-color: #2D5A27 !important;
+  border-color: #2D5A27 !important;
+  transition: 0.3s;
+}
+
+.btn-success:hover {
+  background-color: #1E3D1A !important;
+}
+
+.card {
+  border-radius: 15px !important;
+  border: none !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important;
+}
