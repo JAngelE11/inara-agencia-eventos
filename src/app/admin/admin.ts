@@ -29,8 +29,6 @@ export class Admin implements OnInit {
   terminoBusqueda: string = '';
   filtroEvento: string = '';
   filtroFecha: string = 'todos';
-
-  // ✅ Lista de meses necesaria para el filtro
   nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
   statsEventos: { [key: string]: number } = {
@@ -42,26 +40,51 @@ export class Admin implements OnInit {
   chart: any;
 
   ngOnInit() {
-    const citasRef = collection(this.firestore, 'reservas');
-    collectionData(citasRef, { idField: 'id' }).subscribe({
-      next: (data: any[]) => {
-        this.reservas = data;
-        this.totalCitas = data.length;
-        this.calcularEstadisticas();
-        this.aplicarFiltros(); 
-        this.cargando = false;
+    try {
+      const citasRef = collection(this.firestore, 'reservas');
+      collectionData(citasRef, { idField: 'id' }).subscribe({
+        next: (data: any[]) => {
+          this.reservas = data || [];
+          this.reservasFiltradas = [...this.reservas];
+          this.totalCitas = this.reservas.length;
+          this.calcularEstadisticas();
+          this.cargando = false;
+          
+          setTimeout(() => this.renderizarGrafico(), 150);
+        },
+        error: (err) => {
+          console.error("Error cargando de Firebase:", err);
+          this.cargando = false;
+        }
+      });
+    } catch (error) {
+      console.error("Error crítico en inicialización:", error);
+      this.cargando = false;
+    }
+  }
+
+  aplicarFiltros() {
+    try {
+      this.reservasFiltradas = this.reservas.filter(reserva => {
+        const busquedaTotal = `${reserva.nombre || ''} ${reserva.apellidos || ''} ${reserva.codigoReserva || ''}`.toLowerCase();
+        const cumpleBusqueda = this.terminoBusqueda === '' || busquedaTotal.includes(this.terminoBusqueda.toLowerCase());
+        const cumpleEvento = this.filtroEvento === '' || reserva.tipoEvento === this.filtroEvento;
         
-        setTimeout(() => this.renderizarGrafico(), 100);
-      },
-      error: (err) => {
-        console.error(err);
-        this.cargando = false;
-      }
-    });
+        let cumpleFecha = true;
+        if (this.filtroFecha === 'mes' && reserva.fechaAsignada) {
+          const mesActual = this.nombresMeses[new Date().getMonth()];
+          cumpleFecha = reserva.fechaAsignada.toLowerCase().includes(mesActual);
+        }
+        
+        return cumpleBusqueda && cumpleEvento && cumpleFecha;
+      });
+    } catch (error) {
+      console.error("Error al filtrar:", error);
+      this.reservasFiltradas = [...this.reservas]; // Si falla el filtro, muestra todo
+    }
   }
 
   calcularEstadisticas() {
-    // Resetear stats
     Object.keys(this.statsEventos).forEach(key => this.statsEventos[key] = 0);
     this.reservas.forEach(reserva => {
       const tipo = reserva.tipoEvento;
@@ -74,94 +97,40 @@ export class Admin implements OnInit {
   }
 
   calcularPorcentaje(cantidad: number): number {
-    if (this.totalCitas === 0) return 0;
-    return Math.round((cantidad / this.totalCitas) * 100);
+    return this.totalCitas === 0 ? 0 : Math.round((cantidad / this.totalCitas) * 100);
   }
 
   renderizarGrafico() {
-    const canvas = document.getElementById('graficoEventos') as HTMLCanvasElement;
-    if (!canvas) return;
-    if (this.chart) this.chart.destroy();
-
-    this.chart = new Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(this.statsEventos),
-        datasets: [{
-          data: Object.values(this.statsEventos),
-          backgroundColor: ['#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14', '#dc3545', '#6f42c1', '#d63384', '#6c757d'],
-          borderWidth: 2
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } } }
-    });
-  }
-
-  aplicarFiltros() {
-    this.reservasFiltradas = this.reservas.filter(reserva => {
-      // Búsqueda segura (protegida contra valores null)
-      const nombre = `${reserva.nombre || ''} ${reserva.apellidos || ''}`.toLowerCase();
-      const codigo = (reserva.codigoReserva || '').toLowerCase();
-      const busquedaTotal = `${nombre} ${codigo} ${reserva.id || ''}`.toLowerCase();
-      
-      const cumpleBusqueda = this.terminoBusqueda === '' || busquedaTotal.includes(this.terminoBusqueda.toLowerCase());
-      const cumpleEvento = this.filtroEvento === '' || reserva.tipoEvento === this.filtroEvento;
-      
-      // Filtro de fecha seguro
-      let cumpleFecha = true;
-      if (this.filtroFecha !== 'todos' && reserva.fechaAsignada) {
-        const hoy = new Date();
-        const mesActualNombre = this.nombresMeses[hoy.getMonth()];
-        
-        if (this.filtroFecha === 'mes') {
-            cumpleFecha = reserva.fechaAsignada.toLowerCase().includes(mesActualNombre);
+    try {
+      const canvas = document.getElementById('graficoEventos') as HTMLCanvasElement;
+      if (!canvas) return;
+      if (this.chart) this.chart.destroy();
+      this.chart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(this.statsEventos),
+          datasets: [{ data: Object.values(this.statsEventos), backgroundColor: ['#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14', '#dc3545', '#6f42c1', '#d63384', '#6c757d'] }]
         }
-      }
-      
-      return cumpleBusqueda && cumpleEvento && cumpleFecha;
-    });
-  }
-
-  exportarAExcel() {
-    if (this.reservasFiltradas.length === 0) {
-      Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay registros para exportar.' });
-      return;
+      });
+    } catch (error) {
+      console.error("Error creando el gráfico:", error);
     }
-    const headers = ['ID Reserva', 'Cliente', 'Correo', 'Celular', 'Tipo Evento', 'Modalidad', 'Fecha', 'Hora'];
-    const filas = this.reservasFiltradas.map(r => [
-      `"${r.codigoReserva || ''}"`, `"${r.nombre} ${r.apellidos}"`, `"${r.correo || ''}"`, `"${r.celular || ''}"`,
-      `"${r.tipoEvento || ''}"`, `"${r.modalidad || ''}"`, `"${r.fechaAsignada || ''}"`, `"${r.horaAsignada || ''}"`
-    ]);
-    const contenidoCsv = [headers.join(';'), ...filas.map(e => e.join(';'))].join('\n');
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Reporte_Citas_INARA_${new Date().toISOString().slice(0,10)}.csv`;
-    link.click();
   }
 
   async cancelarCita(id: string, nombre: string) {
-    const result = await Swal.fire({
-      title: `¿Cancelar cita de ${nombre}?`,
-      text: "Esta acción liberará el horario permanentemente.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonText: 'Volver',
-      confirmButtonText: 'Sí, cancelar'
-    });
+    const result = await Swal.fire({ title: `¿Cancelar cita?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'No' });
     if (result.isConfirmed) {
-      try {
-        await deleteDoc(doc(this.firestore, 'reservas', id));
-        Swal.fire('¡Cancelada!', 'La reserva fue eliminada.', 'success');
-      } catch (error) {
-        Swal.fire('Error', 'No se pudo cancelar la cita.', 'error');
+      try { 
+        await deleteDoc(doc(this.firestore, 'reservas', id)); 
+        Swal.fire('Cancelada', '', 'success'); 
+      } catch (e) { 
+        Swal.fire('Error', '', 'error'); 
       }
     }
   }
 
-  async cerrarSesion() {
-    await signOut(this.auth);
-    this.router.navigate(['/login']);
+  async cerrarSesion() { 
+    await signOut(this.auth); 
+    this.router.navigate(['/login']); 
   }
 }

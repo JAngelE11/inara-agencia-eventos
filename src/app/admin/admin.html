@@ -21,14 +21,12 @@
 
   <div *ngIf="!cargando">
     <div class="row mb-4 align-items-stretch">
-      
       <div class="col-md-3 mb-3">
         <div class="card shadow-sm border-0 bg-light text-center h-100 p-4 d-flex justify-content-center" style="border-radius: 15px;">
           <h6 class="fw-bold text-secondary mb-3">Total Reservas</h6>
           <h1 class="display-1 fw-bold text-success m-0">{{ totalCitas }}</h1>
         </div>
       </div>
-
       <div class="col-md-4 mb-3">
         <div class="card shadow-sm border-0 h-100 p-4 d-flex align-items-center justify-content-center" style="border-radius: 15px;">
           <h6 class="fw-bold text-secondary w-100 mb-3 text-center">Distribución de Eventos</h6>
@@ -37,7 +35,6 @@
           </div>
         </div>
       </div>
-      
       <div class="col-md-5 mb-3">
         <div class="card shadow-sm border-0 h-100 p-4 overflow-auto" style="border-radius: 15px; max-height: 280px;">
           <h6 class="fw-bold text-secondary mb-3">Estadísticas Detalladas</h6>
@@ -60,11 +57,11 @@
       <div class="row g-3 mb-4 align-items-end bg-light p-3 rounded" style="border: 1px solid #eee;">
         <div class="col-md-4">
           <label class="form-label small fw-bold text-secondary">🔍 Buscar Cliente / ID</label>
-          <input type="text" class="form-control bg-white" placeholder="Ej: Carlos Perez..." [(ngModel)]="terminoBusqueda" (input)="aplicarFiltros()">
+          <input type="text" class="form-control bg-white" placeholder="Ej: Carlos Perez..." [(ngModel)]="terminoBusqueda">
         </div>
         <div class="col-md-3">
           <label class="form-label small fw-bold text-secondary">🎯 Tipo Evento</label>
-          <select class="form-select bg-white" [(ngModel)]="filtroEvento" (change)="aplicarFiltros()">
+          <select class="form-select bg-white" [(ngModel)]="filtroEvento">
             <option value="">Todos los eventos</option>
             <option value="Matrimonio">Matrimonio</option>
             <option value="15 Años">15 Años</option>
@@ -79,16 +76,13 @@
         </div>
         <div class="col-md-3">
           <label class="form-label small fw-bold text-secondary">📅 Fecha</label>
-          <select class="form-select bg-white" [(ngModel)]="filtroFecha" (change)="aplicarFiltros()">
+          <select class="form-select bg-white" [(ngModel)]="filtroFecha">
             <option value="todos">Todas las fechas</option>
-            <option value="semana">Esta Semana</option>
-            <option value="mes">Este Mes</option>
+            <option value="mes">Solo este mes</option>
           </select>
         </div>
         <div class="col-md-2">
-          <button class="btn btn-success w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" (click)="exportarAExcel()">
-            📄 CSV
-          </button>
+          <button class="btn btn-primary w-100 fw-bold shadow-sm" (click)="aplicarFiltros()">🔍 Filtrar</button>
         </div>
       </div>
 
@@ -98,7 +92,7 @@
             <tr class="text-secondary small">
               <th>Cliente</th>
               <th>Contacto</th>
-              <th>Detalles del Evento</th>
+              <th>Detalles</th>
               <th>Programación</th>
               <th>Acciones</th>
             </tr>
@@ -107,22 +101,18 @@
             <tr *ngFor="let reserva of reservasFiltradas">
               <td>
                 <div class="fw-bold">{{ reserva.nombre }} {{ reserva.apellidos }}</div>
-                <div class="small text-muted" style="font-size: 0.75rem;">🆔 {{ reserva.id }}</div>
                 <div class="small text-muted">✉️ {{ reserva.correo }}</div>
               </td>
               <td><div class="small">📱 {{ reserva.celular }}</div></td>
               <td>
                 <span class="badge bg-success me-2">{{ reserva.tipoEvento }}</span>
-                <span class="badge bg-info text-dark">{{ reserva.modalidad }}</span>
               </td>
               <td>
                 <div class="fw-bold small">📅 {{ reserva.fechaAsignada }}</div>
-                <div class="small text-white bg-dark d-inline-block px-2 py-1 rounded mt-1">⏰ {{ reserva.horaAsignada }}</div>
+                <div class="small text-dark">⏰ {{ reserva.horaAsignada }}</div>
               </td>
               <td>
-                <button class="btn btn-outline-danger btn-sm fw-bold" (click)="cancelarCita(reserva.id, reserva.nombre)">
-                  🗑️ Cancelar
-                </button>
+                <button class="btn btn-outline-danger btn-sm" (click)="cancelarCita(reserva.id, reserva.nombre)">🗑️</button>
               </td>
             </tr>
             <tr *ngIf="reservasFiltradas.length === 0">
