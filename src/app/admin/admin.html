@@ -9,14 +9,13 @@
       <h4 class="fw-bold m-0 text-dark">Panel de Control ⚙️</h4>
     </div>
     <div>
-      <a routerLink="/inicio" class="text-muted fw-bold text-decoration-none small me-3" style="cursor: pointer;">← Volver al Inicio</a>
+      <a routerLink="/inicio" class="text-muted fw-bold text-decoration-none small me-3">← Volver al Inicio</a>
       <a (click)="cerrarSesion()" class="text-danger fw-bold text-decoration-none small shadow-sm px-3 py-2 bg-white rounded-pill border" style="cursor: pointer;">Cerrar Sesión 🔒</a>
     </div>
   </div>
 
   <div *ngIf="cargando" class="text-center my-5">
     <div class="spinner-border text-success" role="status"></div>
-    <p class="text-muted mt-2">Cargando datos...</p>
   </div>
 
   <div *ngIf="!cargando">
@@ -56,6 +55,8 @@
     <div class="card shadow-sm border-0 p-4" style="border-radius: 15px;">
       <h5 class="fw-bold mb-4">Agenda General de Citas</h5>
       
+      <button class="btn btn-warning fw-bold mb-4 shadow-sm" (click)="crearCitaAdmin()">+ Reservar para Cliente</button>
+
       <div class="row g-3 mb-4 align-items-end bg-light p-3 rounded" style="border: 1px solid #eee;">
         <div class="col-md-3">
           <label class="form-label small fw-bold text-secondary">🔍 Buscar Cliente / ID</label>
@@ -79,7 +80,7 @@
         <div class="col-md-2">
           <label class="form-label small fw-bold text-secondary">📅 Fecha</label>
           <select class="form-select bg-white" [(ngModel)]="filtroFecha">
-            <option value="todos">Todos los meses</option>
+            <option value="todos">Todas las fechas</option>
             <option value="mes">Solo este mes</option>
           </select>
         </div>
@@ -121,11 +122,12 @@
                 <div class="small text-dark">⏰ {{ reserva.horaAsignada }}</div>
               </td>
               <td>
+                <button class="btn btn-outline-primary btn-sm me-2" (click)="reprogramarCita(reserva)">📅</button>
                 <button class="btn btn-outline-danger btn-sm" (click)="cancelarCita(reserva.id, reserva.nombre)">🗑️</button>
               </td>
             </tr>
             <tr *ngIf="reservasFiltradas.length === 0">
-              <td colspan="5" class="text-center text-muted py-4">No se encontraron citas con esos filtros.</td>
+              <td colspan="5" class="text-center text-muted py-4">No se encontraron citas.</td>
             </tr>
           </tbody>
         </table>
