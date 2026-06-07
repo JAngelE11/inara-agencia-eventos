@@ -1,8 +1,9 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core'; // ✅ Importamos ChangeDetectorRef
+import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Auth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, onAuthStateChanged } from '@angular/fire/auth';
+// ✅ Agregamos FacebookAuthProvider a las importaciones
+import { Auth, signInWithEmailAndPassword, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, sendPasswordResetEmail, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 
@@ -17,7 +18,7 @@ export class Login implements OnInit {
   private auth = inject(Auth);
   private firestore = inject(Firestore);
   private router = inject(Router);
-  private cdr = inject(ChangeDetectorRef); // ✅ Inyectamos el detector de cambios
+  private cdr = inject(ChangeDetectorRef); 
 
   correo: string = '';
   contrasena: string = '';
@@ -27,12 +28,10 @@ export class Login implements OnInit {
   ngOnInit() {
     const unsubscribe = onAuthStateChanged(this.auth, (user) => {
       if (user) {
-        // Si hay usuario, redirigimos
         this.redireccionarSegunRol(user.uid);
       } else {
-        // Si no hay usuario, mostramos el formulario y "despertamos" a Angular
         this.revisandoSesion = false; 
-        this.cdr.detectChanges(); // ✅ Le damos el "codazo" a Angular para que actualice la pantalla
+        this.cdr.detectChanges(); 
       }
       unsubscribe();
     });
@@ -60,7 +59,6 @@ export class Login implements OnInit {
 
   async iniciarSesionGoogle() {
     const provider = new GoogleAuthProvider();
-    
     try {
       const result = await signInWithPopup(this.auth, provider);
       const user = result.user;
@@ -86,6 +84,43 @@ export class Login implements OnInit {
     } catch (error) {
       console.error(error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar sesión con Google.', confirmButtonColor: '#d33' });
+    }
+  }
+
+  // 🔥 NUEVA FUNCIÓN: LOGIN CON FACEBOOK (Requerimiento 8)
+  async iniciarSesionFacebook() {
+    const provider = new FacebookAuthProvider();
+    try {
+      const result = await signInWithPopup(this.auth, provider);
+      const user = result.user;
+
+      Swal.fire({ title: 'Verificando datos de Facebook...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+      const docRef = doc(this.firestore, 'usuarios', user.uid);
+      const docSnap = await getDoc(docRef);
+
+      // Requerimiento 9: Guarda automáticamente nombre, correo y lo manda a BD
+      if (!docSnap.exists()) {
+        await setDoc(docRef, {
+          nombre: user.displayName || 'Usuario Facebook',
+          apellidos: '',
+          celular: '',
+          correo: user.email || '', 
+          rol: 'cliente',
+          fechaRegistro: new Date().toISOString()
+        });
+      }
+
+      this.redireccionarSegunRol(user.uid);
+
+    } catch (error: any) {
+      console.error(error);
+      // Firebase protege si el correo de FB ya se usó para Google
+      if(error.code === 'auth/account-exists-with-different-credential') {
+        Swal.fire({ icon: 'error', title: 'Correo ya registrado', text: 'Este correo ya está asociado a otra cuenta (probablemente Google). Usa ese método para entrar.', confirmButtonColor: '#d33' });
+      } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo conectar con Facebook.', confirmButtonColor: '#d33' });
+      }
     }
   }
 
@@ -122,7 +157,6 @@ export class Login implements OnInit {
 
     if (email) {
       Swal.fire({ title: 'Enviando correo...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-      
       try {
         await sendPasswordResetEmail(this.auth, email);
         Swal.fire({ icon: 'success', title: '¡Correo enviado!', text: 'Revisa tu bandeja de entrada o spam. Te hemos enviado un enlace para cambiar tu contraseña.', confirmButtonColor: '#198754' });

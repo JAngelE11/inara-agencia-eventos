@@ -2,9 +2,9 @@ import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-// ✅ Cambiamos addDoc por runTransaction para la concurrencia
 import { Firestore, collection, query, where, getDocs, doc, getDoc, runTransaction } from '@angular/fire/firestore';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
+import emailjs from '@emailjs/browser';
 import Swal from 'sweetalert2'; 
 
 @Component({
@@ -159,7 +159,6 @@ export class Calendario implements OnInit {
     this.horaSeleccionada = hora;
   }
 
-  // 🔥 AQUÍ ESTÁ LA MAGIA DE LA CONCURRENCIA MODIFICADA EXACTAMENTE SOBRE TU CÓDIGO
   async confirmarCita() {
     if (!this.diaSeleccionado || !this.horaSeleccionada) {
       Swal.fire({
@@ -185,7 +184,7 @@ export class Calendario implements OnInit {
 
     Swal.fire({
       title: 'Procesando reserva...',
-      text: 'Estamos guardando tu espacio, un momento por favor.',
+      text: 'Estamos guardando tu espacio y enviando las confirmaciones, un momento por favor.',
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
@@ -193,23 +192,20 @@ export class Calendario implements OnInit {
     });
 
     try {
-      // 1. Crear un ID de documento basado en la fecha y la hora para que sea único
-      const idFormateado = fechaCompleta.replace(/\s+/g, '-'); // Quita espacios
-      const horaFormateada = this.horaSeleccionada.replace(':', ''); // Quita los dos puntos
+      const idFormateado = fechaCompleta.replace(/\s+/g, '-'); 
+      const horaFormateada = this.horaSeleccionada.replace(':', ''); 
       const ID_UNICO_BLOQUEO = `CITA_${idFormateado}_${horaFormateada}`;
+      const codigoReservaGenerado = 'INARA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
       
       const citaDocRef = doc(this.firestore, 'reservas', ID_UNICO_BLOQUEO);
 
-      // 2. Ejecutamos la Transacción
       await runTransaction(this.firestore, async (transaction) => {
         const citaSnapshot = await transaction.get(citaDocRef);
 
-        // Si ya existe el documento, ¡alguien nos ganó el clic por milisegundos!
         if (citaSnapshot.exists()) {
           throw new Error('HORARIO_OCUPADO');
         }
 
-        // Si está libre, la transacción guarda el documento de forma atómica
         transaction.set(citaDocRef, {
           nombre: this.usuarioDatos.nombre || 'Sin Nombre',
           apellidos: this.usuarioDatos.apellidos || '',
@@ -219,18 +215,39 @@ export class Calendario implements OnInit {
           modalidad: this.modalidad, 
           fechaAsignada: fechaCompleta,
           horaAsignada: this.horaSeleccionada,
-          // ✅ Agregamos lo que pedía tu Requerimiento 29 y 30
           estado: 'Pendiente de Confirmacion',
-          codigoReserva: 'INARA-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          codigoReserva: codigoReservaGenerado,
           fechaRegistro: new Date().toISOString()
         });
       });
 
-      // ✅ Éxito de la transacción
+      // 🚀 ENVÍO AUTOMÁTICO DE CORREOS ELECTRÓNICOS
+      const parametrosEmail = {
+        nombre_cliente: `${this.usuarioDatos.nombre} ${this.usuarioDatos.apellidos}`,
+        correo_cliente: this.usuarioDatos.correo,
+        celular_cliente: this.usuarioDatos.celular,
+        codigo_reserva: codigoReservaGenerado,
+        tipo_evento: this.tipoEvento,
+        modalidad: this.modalidad,
+        fecha: fechaCompleta,
+        hora: this.horaSeleccionada,
+        id_reserva: ID_UNICO_BLOQUEO
+      };
+
+      try {
+        // En la pantalla que me enviaste se observa tu llave pública. 
+        // Reemplaza únicamente 'TU_SERVICE_ID' por el identificador de tu servicio de Gmail en EmailJS,
+        // y 'TU_PUBLIC_KEY' por la clave pública alfanumérica que aparece en tu captura de pantalla.
+        emailjs.send('TU_SERVICE_ID', 'template_ryb35pl', parametrosEmail, 'TU_PUBLIC_KEY');
+        emailjs.send('TU_SERVICE_ID', 'template_57r1qmt', parametrosEmail, 'TU_PUBLIC_KEY');
+      } catch (emailError) {
+        console.error('Error enviando el correo:', emailError);
+      }
+
       Swal.fire({
         icon: 'success',
         title: '¡Reserva Confirmada!',
-        text: 'Tu cita ha sido agendada con éxito. Te esperamos.',
+        text: 'Tu cita ha sido agendada con éxito. Te hemos enviado un correo con los detalles.',
         confirmButtonColor: '#198754',
         confirmButtonText: 'Ir a mi panel ✨'
       }).then((result) => {
@@ -242,7 +259,6 @@ export class Calendario implements OnInit {
     } catch (e: any) {
       console.error(e);
       
-      // ✅ Requerimiento 32: Si el error fue que alguien más lo ocupó
       if (e.message === 'HORARIO_OCUPADO') {
         Swal.fire({
           icon: 'error',
@@ -250,7 +266,6 @@ export class Calendario implements OnInit {
           text: '¡Oops! Otro cliente acaba de reservar esta misma hora hace unos instantes. Por favor, selecciona otro horario.',
           confirmButtonColor: '#198754'
         });
-        // Volvemos a cargar las horas disponibles para que el usuario vea cuáles quedan
         this.cargarHorasDisponibles();
       } else {
         Swal.fire({
