@@ -38,15 +38,17 @@
       <div class="col-md-5 mb-3">
         <div class="card shadow-sm border-0 h-100 p-4 overflow-auto" style="border-radius: 15px; max-height: 280px;">
           <h6 class="fw-bold text-secondary mb-3">Estadísticas Detalladas</h6>
-          <div *ngFor="let item of statsEventos | keyvalue" class="mb-3">
-            <div class="d-flex justify-content-between small fw-bold mb-1">
-              <span class="text-truncate" style="max-width: 70%;">{{ item.key }} ({{ item.value }})</span>
-              <span>{{ calcularPorcentaje(item.value) }}%</span>
+          <ng-container *ngFor="let item of statsEventos | keyvalue">
+            <div class="mb-3" *ngIf="item.value > 0">
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+                <span class="text-truncate" style="max-width: 70%;">{{ item.key }} ({{ item.value }})</span>
+                <span>{{ calcularPorcentaje(item.value) }}%</span>
+              </div>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-success" [style.width.%]="calcularPorcentaje(item.value)"></div>
+              </div>
             </div>
-            <div class="progress" style="height: 6px;">
-              <div class="progress-bar bg-success" [style.width.%]="calcularPorcentaje(item.value)"></div>
-            </div>
-          </div>
+          </ng-container>
         </div>
       </div>
     </div>
@@ -55,9 +57,9 @@
       <h5 class="fw-bold mb-4">Agenda General de Citas</h5>
       
       <div class="row g-3 mb-4 align-items-end bg-light p-3 rounded" style="border: 1px solid #eee;">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label small fw-bold text-secondary">🔍 Buscar Cliente / ID</label>
-          <input type="text" class="form-control bg-white" placeholder="Ej: Carlos Perez..." [(ngModel)]="terminoBusqueda">
+          <input type="text" class="form-control bg-white" placeholder="Ej: Carlos..." [(ngModel)]="terminoBusqueda">
         </div>
         <div class="col-md-3">
           <label class="form-label small fw-bold text-secondary">🎯 Tipo Evento</label>
@@ -74,15 +76,18 @@
             <option value="Otros eventos u cumpleaños">Otros</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label small fw-bold text-secondary">📅 Fecha</label>
           <select class="form-select bg-white" [(ngModel)]="filtroFecha">
-            <option value="todos">Todas las fechas</option>
+            <option value="todos">Todos los meses</option>
             <option value="mes">Solo este mes</option>
           </select>
         </div>
         <div class="col-md-2">
           <button class="btn btn-primary w-100 fw-bold shadow-sm" (click)="aplicarFiltros()">🔍 Filtrar</button>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-success w-100 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" (click)="exportarAExcel()">📄 CSV</button>
         </div>
       </div>
 
@@ -101,11 +106,15 @@
             <tr *ngFor="let reserva of reservasFiltradas">
               <td>
                 <div class="fw-bold">{{ reserva.nombre }} {{ reserva.apellidos }}</div>
+                <div class="small text-muted" style="font-size: 0.75rem;">🆔 {{ reserva.codigoReserva }}</div>
+              </td>
+              <td>
+                <div class="small">📱 {{ reserva.celular }}</div>
                 <div class="small text-muted">✉️ {{ reserva.correo }}</div>
               </td>
-              <td><div class="small">📱 {{ reserva.celular }}</div></td>
               <td>
                 <span class="badge bg-success me-2">{{ reserva.tipoEvento }}</span>
+                <span class="badge bg-info text-dark">{{ reserva.modalidad }}</span>
               </td>
               <td>
                 <div class="fw-bold small">📅 {{ reserva.fechaAsignada }}</div>
@@ -116,7 +125,7 @@
               </td>
             </tr>
             <tr *ngIf="reservasFiltradas.length === 0">
-              <td colspan="5" class="text-center text-muted py-4">No se encontraron citas.</td>
+              <td colspan="5" class="text-center text-muted py-4">No se encontraron citas con esos filtros.</td>
             </tr>
           </tbody>
         </table>
