@@ -221,7 +221,7 @@ export class Calendario implements OnInit {
         });
       });
 
-// 🚀 ENVÍO AUTOMÁTICO DE CORREOS
+// 🚀 ENVÍO AUTOMÁTICO DE CORREOS ELECTRÓNICOS
       const parametrosEmail = {
         nombre_cliente: `${this.usuarioDatos.nombre} ${this.usuarioDatos.apellidos}`,
         correo_cliente: this.usuarioDatos.correo,
@@ -231,24 +231,26 @@ export class Calendario implements OnInit {
         modalidad: this.modalidad,
         fecha: fechaCompleta,
         hora: this.horaSeleccionada,
-        // IMPORTANTE: Asegúrate de que en tus plantillas de EmailJS 
-        // uses {{id_reserva}} para el enlace de cancelación.
-        id_reserva: ID_UNICO_BLOQUEO 
+        id_reserva: ID_UNICO_BLOQUEO
       };
 
       try {
-        // Usa tu SERVICE_ID real y PUBLIC_KEY real
-        const SERVICE_ID = 'service_tu_id_real'; 
-        const PUBLIC_KEY = 'tu_public_key_real';
+        // ⚠️ BORRA LAS COMILLAS Y PON TUS DATOS REALES DE EMAILJS AQUÍ:
+        // El Service ID lo encuentras en EmailJS -> Email Services (suele empezar con "service_")
+        const SERVICE_ID = 'service_0u27b6y'; 
+        
+        // Tu Public Key la encuentras en EmailJS -> Account -> API Keys
+        const PUBLIC_KEY = 'jXgYL3f-YQRCWnt73';
 
-        // Enviar al cliente
+        // ✅ Plantilla del Cliente (la que verificamos juntas)
         await emailjs.send(SERVICE_ID, 'template_ryb35pl', parametrosEmail, PUBLIC_KEY);
-        // Enviar a la administradora
+        
+        // ✅ Plantilla de la Administradora (la que verificamos juntas)
         await emailjs.send(SERVICE_ID, 'template_57r1qmt', parametrosEmail, PUBLIC_KEY);
         
+        console.log("¡Correos enviados exitosamente!");
       } catch (emailError) {
         console.error('Error enviando el correo:', emailError);
-        // Opcional: No lanzamos error fatal porque la cita ya se guardó en BD.
       }
       Swal.fire({
         icon: 'success',
