@@ -221,7 +221,7 @@ export class Calendario implements OnInit {
         });
       });
 
-      // 🚀 ENVÍO AUTOMÁTICO DE CORREOS ELECTRÓNICOS
+// 🚀 ENVÍO AUTOMÁTICO DE CORREOS
       const parametrosEmail = {
         nombre_cliente: `${this.usuarioDatos.nombre} ${this.usuarioDatos.apellidos}`,
         correo_cliente: this.usuarioDatos.correo,
@@ -231,19 +231,25 @@ export class Calendario implements OnInit {
         modalidad: this.modalidad,
         fecha: fechaCompleta,
         hora: this.horaSeleccionada,
-        id_reserva: ID_UNICO_BLOQUEO
+        // IMPORTANTE: Asegúrate de que en tus plantillas de EmailJS 
+        // uses {{id_reserva}} para el enlace de cancelación.
+        id_reserva: ID_UNICO_BLOQUEO 
       };
 
       try {
-        // En la pantalla que me enviaste se observa tu llave pública. 
-        // Reemplaza únicamente 'TU_SERVICE_ID' por el identificador de tu servicio de Gmail en EmailJS,
-        // y 'TU_PUBLIC_KEY' por la clave pública alfanumérica que aparece en tu captura de pantalla.
-        emailjs.send('TU_SERVICE_ID', 'template_ryb35pl', parametrosEmail, 'TU_PUBLIC_KEY');
-        emailjs.send('TU_SERVICE_ID', 'template_57r1qmt', parametrosEmail, 'TU_PUBLIC_KEY');
+        // Usa tu SERVICE_ID real y PUBLIC_KEY real
+        const SERVICE_ID = 'service_tu_id_real'; 
+        const PUBLIC_KEY = 'tu_public_key_real';
+
+        // Enviar al cliente
+        await emailjs.send(SERVICE_ID, 'template_ryb35pl', parametrosEmail, PUBLIC_KEY);
+        // Enviar a la administradora
+        await emailjs.send(SERVICE_ID, 'template_57r1qmt', parametrosEmail, PUBLIC_KEY);
+        
       } catch (emailError) {
         console.error('Error enviando el correo:', emailError);
+        // Opcional: No lanzamos error fatal porque la cita ya se guardó en BD.
       }
-
       Swal.fire({
         icon: 'success',
         title: '¡Reserva Confirmada!',

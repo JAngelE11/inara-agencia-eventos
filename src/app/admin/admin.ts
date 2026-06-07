@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { Firestore, collection, collectionData, doc, deleteDoc } from '@angular/fire/firestore';
 import { Auth, signOut } from '@angular/fire/auth';
 import Swal from 'sweetalert2';
-// ✅ IMPORTAMOS LA LIBRERÍA DE GRÁFICOS
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -37,7 +36,7 @@ export class Admin implements OnInit {
     'Evento Corporativo': 0, 'Otros eventos u cumpleaños': 0
   };
 
-  chart: any; // ✅ Variable para guardar el gráfico
+  chart: any;
 
   ngOnInit() {
     const citasRef = collection(this.firestore, 'reservas');
@@ -49,7 +48,6 @@ export class Admin implements OnInit {
         this.aplicarFiltros(); 
         this.cargando = false;
         
-        // ✅ DIBUJAMOS EL GRÁFICO (esperamos 100ms para que Angular cargue el HTML primero)
         setTimeout(() => this.renderizarGrafico(), 100);
       },
       error: (err) => {
@@ -76,61 +74,51 @@ export class Admin implements OnInit {
     return Math.round((cantidad / this.totalCitas) * 100);
   }
 
-  // 🔥 NUEVA FUNCIÓN PARA EL GRÁFICO CIRCULAR
   renderizarGrafico() {
     const canvas = document.getElementById('graficoEventos') as HTMLCanvasElement;
     if (!canvas) return;
-
-    if (this.chart) {
-      this.chart.destroy(); // Si ya existe uno, lo borramos para actualizarlo
-    }
-
-    const etiquetas = Object.keys(this.statsEventos);
-    const datos = Object.values(this.statsEventos);
+    if (this.chart) this.chart.destroy();
 
     this.chart = new Chart(canvas, {
       type: 'doughnut',
       data: {
-        labels: etiquetas,
+        labels: Object.keys(this.statsEventos),
         datasets: [{
-          data: datos,
-          backgroundColor: [
-            '#198754', '#20c997', '#0dcaf0', '#ffc107', 
-            '#fd7e14', '#dc3545', '#6f42c1', '#d63384', '#6c757d'
-          ],
+          data: Object.values(this.statsEventos),
+          backgroundColor: ['#198754', '#20c997', '#0dcaf0', '#ffc107', '#fd7e14', '#dc3545', '#6f42c1', '#d63384', '#6c757d'],
           borderWidth: 2
         }]
       },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false } // Ocultamos la leyenda para que no ocupe tanto espacio
-        }
-      }
+      options: { responsive: true, plugins: { legend: { display: false } } }
     });
   }
 
   aplicarFiltros() {
     this.reservasFiltradas = this.reservas.filter(reserva => {
-      const busquedaCompleta = `${reserva.nombre} ${reserva.apellidos} ${reserva.id || ''}`.toLowerCase();
-      const cumpleBusqueda = busquedaCompleta.includes(this.terminoBusqueda.toLowerCase());
+      // 1. Filtro por Busqueda (Nombre, ID o Codigo)
+      const busquedaCompleta = `${reserva.nombre} ${reserva.apellidos} ${reserva.codigoReserva || ''} ${reserva.id || ''}`.toLowerCase();
+      const cumpleBusqueda = this.terminoBusqueda === '' || busquedaCompleta.includes(this.terminoBusqueda.toLowerCase());
+      
+      // 2. Filtro por Tipo Evento
       const cumpleEvento = this.filtroEvento === '' || reserva.tipoEvento === this.filtroEvento;
       
+      // 3. Filtro por Fecha (Mas seguro)
       let cumpleFecha = true;
-      if (reserva.fechaAsignada) {
-        const fechaCita = new Date(reserva.fechaAsignada.split(' de ').join('-')); 
-        const hoy = new Date();
-        
-        if (this.filtroFecha === 'mes') {
-          cumpleFecha = fechaCita.getMonth() === hoy.getMonth() && fechaCita.getFullYear() === hoy.getFullYear();
-        } else if (this.filtroFecha === 'semana') {
-          const inicioSemana = new Date(hoy.setDate(hoy.getDate() - hoy.getDay() + 1));
-          const finSemana = new Date(hoy.setDate(hoy.getDate() - hoy.getDay() + 7));
-          inicioSemana.setHours(0,0,0,0);
-          finSemana.setHours(23,59,59,999);
-          cumpleFecha = fechaCita >= inicioSemana && fechaCita <= finSemana;
+      if (this.filtroFecha !== 'todos') {
+        // Solo intentamos filtrar si la fecha es distinta a 'todos'
+        // Si no podemos convertir la fecha, la dejamos visible para no perder datos
+        try {
+          const hoy = new Date();
+          // NOTA: Esta lógica es simple. Si necesitas precisión total, 
+          // guarda la fecha como Timestamp en Firebase en lugar de string.
+          if (this.filtroFecha === 'mes') {
+            cumpleFecha = reserva.fechaAsignada.toLowerCase().includes(this.nombresMeses[hoy.getMonth()].toLowerCase());
+          }
+        } catch (e) {
+          cumpleFecha = true; 
         }
       }
+
       return cumpleBusqueda && cumpleEvento && cumpleFecha;
     });
   }
@@ -140,24 +128,17 @@ export class Admin implements OnInit {
       Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay registros para exportar.' });
       return;
     }
-
     const headers = ['ID Reserva', 'Cliente', 'Correo', 'Celular', 'Tipo Evento', 'Modalidad', 'Fecha', 'Hora'];
     const filas = this.reservasFiltradas.map(r => [
-      `"${r.id || ''}"`, `"${r.nombre} ${r.apellidos}"`, `"${r.correo || ''}"`, `"${r.celular || ''}"`,
+      `"${r.codigoReserva || ''}"`, `"${r.nombre} ${r.apellidos}"`, `"${r.correo || ''}"`, `"${r.celular || ''}"`,
       `"${r.tipoEvento || ''}"`, `"${r.modalidad || ''}"`, `"${r.fechaAsignada || ''}"`, `"${r.horaAsignada || ''}"`
     ]);
-
     const contenidoCsv = [headers.join(';'), ...filas.map(e => e.join(';'))].join('\n');
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), contenidoCsv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Reporte_Citas_INARA_${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `Reporte_Citas_INARA_${new Date().toISOString().slice(0,10)}.csv`;
     link.click();
-    document.body.removeChild(link);
   }
 
   async cancelarCita(id: string, nombre: string) {
@@ -167,11 +148,9 @@ export class Admin implements OnInit {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Sí, cancelar',
-      cancelButtonText: 'Volver'
+      cancelButtonText: 'Volver',
+      confirmButtonText: 'Sí, cancelar'
     });
-
     if (result.isConfirmed) {
       try {
         await deleteDoc(doc(this.firestore, 'reservas', id));
