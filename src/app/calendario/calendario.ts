@@ -2,9 +2,10 @@ import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Firestore, collection, addDoc, query, where, getDocs, doc, getDoc } from '@angular/fire/firestore';
+// ✅ Cambiamos addDoc por runTransaction para la concurrencia
+import { Firestore, collection, query, where, getDocs, doc, getDoc, runTransaction } from '@angular/fire/firestore';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
-import Swal from 'sweetalert2'; // ✅ LA MAGIA DE LAS ALERTAS
+import Swal from 'sweetalert2'; 
 
 @Component({
   selector: 'app-calendario',
@@ -20,7 +21,7 @@ export class Calendario implements OnInit {
   private auth = inject(Auth);
 
   tipoEvento: string = ''; 
-  modalidad: string = ''; // ✅ NUEVA VARIABLE
+  modalidad: string = ''; 
   usuarioDatos: any = {}; 
 
   mesActual: number = new Date().getMonth();
@@ -142,7 +143,6 @@ export class Calendario implements OnInit {
 
     } catch (e) {
       console.error('Error consultando base de datos:', e);
-      // ✅ ALERTA DE ERROR MODERNA
       Swal.fire({
         icon: 'error',
         title: 'Error de conexión',
@@ -159,9 +159,9 @@ export class Calendario implements OnInit {
     this.horaSeleccionada = hora;
   }
 
+  // 🔥 AQUÍ ESTÁ LA MAGIA DE LA CONCURRENCIA MODIFICADA EXACTAMENTE SOBRE TU CÓDIGO
   async confirmarCita() {
     if (!this.diaSeleccionado || !this.horaSeleccionada) {
-      // ❌ ALERTA DE ERROR BONITA
       Swal.fire({
         icon: 'warning',
         title: 'Faltan datos',
@@ -172,7 +172,6 @@ export class Calendario implements OnInit {
     }
 
     if (!this.tipoEvento || !this.modalidad) {
-      // ❌ ALERTA DE ERROR BONITA
       Swal.fire({
         icon: 'warning',
         title: 'Casi listo',
@@ -184,7 +183,6 @@ export class Calendario implements OnInit {
 
     const fechaCompleta = `${this.diaSeleccionado} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
 
-    // ⏳ ALERTA DE CARGA (Bloquea la pantalla para que no hagan doble clic)
     Swal.fire({
       title: 'Procesando reserva...',
       text: 'Estamos guardando tu espacio, un momento por favor.',
@@ -195,19 +193,40 @@ export class Calendario implements OnInit {
     });
 
     try {
-      await addDoc(collection(this.firestore, 'reservas'), {
-        nombre: this.usuarioDatos.nombre || 'Sin Nombre',
-        apellidos: this.usuarioDatos.apellidos || '',
-        celular: this.usuarioDatos.celular || '',
-        correo: this.usuarioDatos.correo || '',
-        tipoEvento: this.tipoEvento, 
-        modalidad: this.modalidad, // ✅ SE GUARDA EN FIREBASE
-        fechaAsignada: fechaCompleta,
-        horaAsignada: this.horaSeleccionada,
-        fechaRegistro: new Date().toISOString()
+      // 1. Crear un ID de documento basado en la fecha y la hora para que sea único
+      const idFormateado = fechaCompleta.replace(/\s+/g, '-'); // Quita espacios
+      const horaFormateada = this.horaSeleccionada.replace(':', ''); // Quita los dos puntos
+      const ID_UNICO_BLOQUEO = `CITA_${idFormateado}_${horaFormateada}`;
+      
+      const citaDocRef = doc(this.firestore, 'reservas', ID_UNICO_BLOQUEO);
+
+      // 2. Ejecutamos la Transacción
+      await runTransaction(this.firestore, async (transaction) => {
+        const citaSnapshot = await transaction.get(citaDocRef);
+
+        // Si ya existe el documento, ¡alguien nos ganó el clic por milisegundos!
+        if (citaSnapshot.exists()) {
+          throw new Error('HORARIO_OCUPADO');
+        }
+
+        // Si está libre, la transacción guarda el documento de forma atómica
+        transaction.set(citaDocRef, {
+          nombre: this.usuarioDatos.nombre || 'Sin Nombre',
+          apellidos: this.usuarioDatos.apellidos || '',
+          celular: this.usuarioDatos.celular || '',
+          correo: this.usuarioDatos.correo || '',
+          tipoEvento: this.tipoEvento, 
+          modalidad: this.modalidad, 
+          fechaAsignada: fechaCompleta,
+          horaAsignada: this.horaSeleccionada,
+          // ✅ Agregamos lo que pedía tu Requerimiento 29 y 30
+          estado: 'Pendiente de Confirmacion',
+          codigoReserva: 'INARA-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          fechaRegistro: new Date().toISOString()
+        });
       });
 
-      // ✅ ALERTA DE ÉXITO GIGANTE Y ANIMADA
+      // ✅ Éxito de la transacción
       Swal.fire({
         icon: 'success',
         title: '¡Reserva Confirmada!',
@@ -220,15 +239,27 @@ export class Calendario implements OnInit {
         }
       });
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      // ❌ ALERTA DE FALLO EN FIREBASE
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: 'Hubo un problema de conexión. Inténtalo de nuevo.',
-        confirmButtonColor: '#d33'
-      });
+      
+      // ✅ Requerimiento 32: Si el error fue que alguien más lo ocupó
+      if (e.message === 'HORARIO_OCUPADO') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Horario no disponible',
+          text: '¡Oops! Otro cliente acaba de reservar esta misma hora hace unos instantes. Por favor, selecciona otro horario.',
+          confirmButtonColor: '#198754'
+        });
+        // Volvemos a cargar las horas disponibles para que el usuario vea cuáles quedan
+        this.cargarHorasDisponibles();
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: 'Hubo un problema de conexión. Inténtalo de nuevo.',
+          confirmButtonColor: '#d33'
+        });
+      }
     }
   }
 }
