@@ -70,39 +70,69 @@ export class Admin implements OnInit {
   }
 
   // ==========================================
-  // LOGICA MEJORADA: CREAR CITA PARA CLIENTE
+  // RESERVA MANUAL CON CAMPO DE COMENTARIOS
   // ==========================================
   async crearCitaAdmin() {
     const { value: formValues } = await Swal.fire({
-      title: '<h3 class="fw-bold" style="color: #198754;">Nueva Reserva Manual</h3>',
+      title: '<h3 class="fw-bold" style="color: #198754; margin-bottom: 0;">Nueva Reserva Manual</h3><p class="text-muted small">Panel de Gestión Inara</p>',
+      width: '600px',
       html: `
-        <div class="text-start px-3">
-          <label class="small fw-bold text-muted">Datos del Cliente</label>
-          <input id="swal-nombre" class="swal2-input m-0 w-100 mb-2" style="font-size: 1rem;" placeholder="Nombres">
-          <input id="swal-apellidos" class="swal2-input m-0 w-100 mb-2" style="font-size: 1rem;" placeholder="Apellidos">
-          <input id="swal-celular" class="swal2-input m-0 w-100 mb-3" style="font-size: 1rem;" placeholder="Celular (9 dígitos)">
-          
-          <label class="small fw-bold text-muted">Detalles del Evento</label>
-          <select id="swal-tipo" class="swal2-select w-100 m-0 mb-2">
+        <style>
+          .inara-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; }
+          .inara-input:focus { border-color: #198754; outline: none; box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25); }
+          .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+          .time-option { display: none; }
+          .time-label { display: block; padding: 10px; text-align: center; border: 1px solid #6c757d; border-radius: 20px; cursor: pointer; transition: all 0.3s; color: #6c757d; font-weight: bold; }
+          .time-option:checked + .time-label { background-color: #6c757d; color: white; border-color: #6c757d; }
+          .time-label:hover { background-color: #f8f9fa; }
+        </style>
+        
+        <div class="text-start px-2">
+          <h6 class="fw-bold mb-2 text-dark">1. Datos del Cliente</h6>
+          <div class="row g-2">
+            <div class="col-6"><input id="swal-nombre" class="inara-input m-0" placeholder="Nombres"></div>
+            <div class="col-6"><input id="swal-apellidos" class="inara-input m-0" placeholder="Apellidos"></div>
+          </div>
+          <input id="swal-celular" class="inara-input mt-2" placeholder="Celular (9 dígitos)">
+
+          <h6 class="fw-bold mb-3 mt-2 text-dark">2. Selecciona tu Fecha 📅</h6>
+          <input id="swal-fecha" type="date" class="inara-input" min="${new Date().toISOString().split('T')[0]}">
+
+          <h6 class="fw-bold mb-3 mt-2 text-center text-dark">¿A qué hora? 🕒</h6>
+          <div class="time-grid">
+            <div>
+              <input type="radio" name="swal-hora" id="hora-13" value="13:00" class="time-option">
+              <label for="hora-13" class="time-label">13:00</label>
+            </div>
+            <div>
+              <input type="radio" name="swal-hora" id="hora-14" value="14:00" class="time-option">
+              <label for="hora-14" class="time-label">14:00</label>
+            </div>
+            <div>
+              <input type="radio" name="swal-hora" id="hora-15" value="15:00" class="time-option">
+              <label for="hora-15" class="time-label">15:00</label>
+            </div>
+            <div>
+              <input type="radio" name="swal-hora" id="hora-16" value="16:00" class="time-option">
+              <label for="hora-16" class="time-label">16:00</label>
+            </div>
+          </div>
+
+          <h6 class="fw-bold mb-2 mt-3 text-dark">3. Detalles del Evento</h6>
+          <select id="swal-tipo" class="inara-input">
+            <option value="Otros eventos u cumpleaños">Otros eventos u cumpleaños</option>
             <option value="Matrimonio">Matrimonio</option>
             <option value="15 Años">15 Años</option>
             <option value="Cumplekids">Cumplekids</option>
             <option value="Graduación">Graduación</option>
-            <option value="Otros eventos u cumpleaños">Otros</option>
           </select>
-          <select id="swal-modalidad" class="swal2-select w-100 m-0 mb-3">
-            <option value="Presencial en oficina">Presencial en oficina</option>
+          <select id="swal-modalidad" class="inara-input">
             <option value="Virtual Zoom">Virtual Zoom</option>
+            <option value="Presencial en oficina">Presencial en oficina</option>
           </select>
 
-          <label class="small fw-bold text-muted">Programación</label>
-          <input id="swal-fecha" type="date" class="swal2-input m-0 w-100 mb-2" min="${new Date().toISOString().split('T')[0]}">
-          <select id="swal-hora" class="swal2-select w-100 m-0">
-            <option value="13:00">13:00 PM</option>
-            <option value="14:00">14:00 PM</option>
-            <option value="15:00">15:00 PM</option>
-            <option value="16:00">16:00 PM</option>
-          </select>
+          <h6 class="fw-bold mb-2 mt-2 text-dark">4. Notas / Detalles Especiales 📝</h6>
+          <textarea id="swal-comentarios" class="inara-input" rows="3" placeholder="Ej. El cliente solicita presupuesto detallado de catering..."></textarea>
         </div>
       `,
       showCancelButton: true,
@@ -114,16 +144,18 @@ export class Admin implements OnInit {
         const apellidos = (document.getElementById('swal-apellidos') as HTMLInputElement).value;
         const celular = (document.getElementById('swal-celular') as HTMLInputElement).value;
         const fecha = (document.getElementById('swal-fecha') as HTMLInputElement).value;
-        const hora = (document.getElementById('swal-hora') as HTMLInputElement).value;
         const tipo = (document.getElementById('swal-tipo') as HTMLInputElement).value;
         const modalidad = (document.getElementById('swal-modalidad') as HTMLInputElement).value;
+        const comentarios = (document.getElementById('swal-comentarios') as HTMLTextAreaElement).value;
+        
+        const horaSeleccionada = document.querySelector('input[name="swal-hora"]:checked') as HTMLInputElement;
+        const hora = horaSeleccionada ? horaSeleccionada.value : null;
 
         if (!nombre || !apellidos || !celular || !fecha || !hora) {
-          Swal.showValidationMessage('Por favor rellena todos los campos');
+          Swal.showValidationMessage('Por favor rellena todos los campos obligatorios.');
           return;
         }
 
-        // --- VALIDACIÓN DE DISPONIBILIDAD ---
         const citasRef = collection(this.firestore, 'reservas');
         const q = query(citasRef, where('fechaAsignada', '==', this.formatearFecha(fecha)), where('horaAsignada', '==', hora));
         const checkSnapshot = await getDocs(q);
@@ -139,6 +171,7 @@ export class Admin implements OnInit {
           horaAsignada: hora,
           tipoEvento: tipo,
           modalidad: modalidad,
+          comentarios: comentarios || 'Sin comentarios',
           fechaRegistro: new Date().toISOString(),
           codigoReserva: 'MAN-' + Math.random().toString(36).substring(2, 7).toUpperCase()
         };
@@ -156,16 +189,12 @@ export class Admin implements OnInit {
     }
   }
 
-  // Auxiliar para que la fecha se guarde como "12 de junio de 2026" igual que el cliente
   formatearFecha(fechaISO: string): string {
     const partes = fechaISO.split('-');
     const d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
     return `${d.getDate()} de ${this.nombresMeses[d.getMonth()]} de ${d.getFullYear()}`;
   }
 
-  // ==========================================
-  // REPROGRAMAR CITA
-  // ==========================================
   async reprogramarCita(reserva: any) {
     const { value: formValues } = await Swal.fire({
       title: 'Reprogramar Cita',
@@ -196,8 +225,6 @@ export class Admin implements OnInit {
         }
 
         const fechaFormateada = this.formatearFecha(fecha);
-        
-        // Verificar si el nuevo horario no choca con otra cita
         const citasRef = collection(this.firestore, 'reservas');
         const q = query(citasRef, where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora));
         const checkSnapshot = await getDocs(q);
@@ -223,7 +250,6 @@ export class Admin implements OnInit {
     }
   }
 
-  // --- RESTO DE FUNCIONES (FILTROS, GRAFICOS, ETC) ---
   aplicarFiltros() {
     this.reservasFiltradas = this.reservas.filter(reserva => {
       const busquedaTotal = `${reserva.nombre || ''} ${reserva.apellidos || ''} ${reserva.codigoReserva || ''}`.toLowerCase();
@@ -274,10 +300,21 @@ export class Admin implements OnInit {
     } catch (error) { console.error("Error gráfico:", error); }
   }
 
+  // EXPORTACIÓN EXCEL MEJORADA CON COMENTARIOS
   exportarAExcel() {
     if (this.reservasFiltradas.length === 0) { Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay registros.' }); return; }
-    const headers = ['Codigo', 'Cliente', 'Correo', 'Celular', 'Tipo Evento', 'Modalidad', 'Fecha', 'Hora'];
-    const filas = this.reservasFiltradas.map(r => [`"${r.codigoReserva || ''}"`, `"${r.nombre} ${r.apellidos}"`, `"${r.correo || ''}"`, `"${r.celular || ''}"`, `"${r.tipoEvento}"`, `"${r.modalidad}"`, `"${r.fechaAsignada}"`, `"${r.horaAsignada}"`]);
+    const headers = ['Codigo', 'Cliente', 'Correo', 'Celular', 'Tipo Evento', 'Modalidad', 'Fecha', 'Hora', 'Detalles/Comentarios'];
+    const filas = this.reservasFiltradas.map(r => [
+      `"${r.codigoReserva || ''}"`, 
+      `"${r.nombre} ${r.apellidos}"`, 
+      `"${r.correo || ''}"`, 
+      `"${r.celular || ''}"`, 
+      `"${r.tipoEvento}"`, 
+      `"${r.modalidad}"`, 
+      `"${r.fechaAsignada}"`, 
+      `"${r.horaAsignada}"`,
+      `"${r.comentarios || 'Sin comentarios'}"`
+    ]);
     const contenidoCsv = [headers.join(';'), ...filas.map(e => e.join(';'))].join('\n');
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), contenidoCsv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');

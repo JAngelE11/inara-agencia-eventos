@@ -80,7 +80,7 @@
       </select>
     </div>
 
-    <div class="mb-4 text-start" *ngIf="horaSeleccionada">
+    <div class="mb-3 text-start" *ngIf="horaSeleccionada">
       <label class="form-label fw-bold text-secondary small">¿Cómo prefieres la asesoría? *</label>
       <select class="form-select border-primary shadow-sm" [(ngModel)]="modalidad" name="modalidad">
         <option value="" disabled selected>Selecciona la modalidad...</option>
@@ -89,9 +89,19 @@
       </select>
     </div>
 
+    <div class="mb-3 text-start" *ngIf="horaSeleccionada">
+      <label class="form-label fw-bold text-secondary small">Número de Celular *</label>
+      <input type="text" class="form-control border-dark shadow-sm" [(ngModel)]="usuarioDatos.celular" name="celular" placeholder="Ej. 987654321" maxlength="9">
+    </div>
+
+    <div class="mb-4 text-start" *ngIf="horaSeleccionada">
+      <label class="form-label fw-bold text-secondary small">Detalles o comentarios adicionales 📝</label>
+      <textarea class="form-control shadow-sm" [(ngModel)]="comentariosCliente" name="comentarios" rows="2" placeholder="Ej. Necesitamos presupuesto para 50 invitados..."></textarea>
+    </div>
+
     <button class="btn text-white w-100 fw-bold mb-2 shadow-sm" 
             style="background-color: #198754; padding: 12px; border-radius: 8px;"
-            [disabled]="!horaSeleccionada || !tipoEvento || !modalidad"
+            [disabled]="!horaSeleccionada || !tipoEvento || !modalidad || !usuarioDatos.celular"
             (click)="confirmarCita()">
       Confirmar Reserva
     </button>

@@ -22,6 +22,7 @@ export class Calendario implements OnInit {
 
   tipoEvento: string = ''; 
   modalidad: string = ''; 
+  comentariosCliente: string = ''; // NUEVA VARIABLE PARA COMENTARIOS
   usuarioDatos: any = {}; 
 
   mesActual: number = new Date().getMonth();
@@ -180,6 +181,17 @@ export class Calendario implements OnInit {
       return;
     }
 
+    // VALIDACIÓN DEL NUEVO CAMPO DE CELULAR
+    if (!this.usuarioDatos.celular || String(this.usuarioDatos.celular).trim().length < 9) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Número de Celular requerido',
+        text: 'Por favor, ingresa un número de celular válido para poder contactarte sobre tu reserva.',
+        confirmButtonColor: '#198754'
+      });
+      return;
+    }
+
     const fechaCompleta = `${this.diaSeleccionado} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
 
     Swal.fire({
@@ -207,12 +219,13 @@ export class Calendario implements OnInit {
         }
 
         transaction.set(citaDocRef, {
-          nombre: this.usuarioDatos.nombre || 'Sin Nombre',
+          nombre: this.usuarioDatos.nombre || 'Cliente web',
           apellidos: this.usuarioDatos.apellidos || '',
-          celular: this.usuarioDatos.celular || '',
+          celular: this.usuarioDatos.celular, // Guardando el celular actualizado
           correo: this.usuarioDatos.correo || '',
           tipoEvento: this.tipoEvento, 
           modalidad: this.modalidad, 
+          comentarios: this.comentariosCliente || 'Sin comentarios', // Guardando los comentarios
           fechaAsignada: fechaCompleta,
           horaAsignada: this.horaSeleccionada,
           estado: 'Pendiente de Confirmacion',
@@ -221,9 +234,9 @@ export class Calendario implements OnInit {
         });
       });
 
-// 🚀 ENVÍO AUTOMÁTICO DE CORREOS ELECTRÓNICOS
+      // 🚀 ENVÍO AUTOMÁTICO DE CORREOS ELECTRÓNICOS
       const parametrosEmail = {
-        nombre_cliente: `${this.usuarioDatos.nombre} ${this.usuarioDatos.apellidos}`,
+        nombre_cliente: `${this.usuarioDatos.nombre || 'Cliente'} ${this.usuarioDatos.apellidos || ''}`,
         correo_cliente: this.usuarioDatos.correo,
         celular_cliente: this.usuarioDatos.celular,
         codigo_reserva: codigoReservaGenerado,
@@ -231,27 +244,22 @@ export class Calendario implements OnInit {
         modalidad: this.modalidad,
         fecha: fechaCompleta,
         hora: this.horaSeleccionada,
+        comentarios: this.comentariosCliente || 'Sin comentarios', // Enviando comentarios al correo (opcional si lo pones en tu plantilla EmailJS)
         id_reserva: ID_UNICO_BLOQUEO
       };
 
       try {
-        // ⚠️ BORRA LAS COMILLAS Y PON TUS DATOS REALES DE EMAILJS AQUÍ:
-        // El Service ID lo encuentras en EmailJS -> Email Services (suele empezar con "service_")
         const SERVICE_ID = 'service_0u27b6y'; 
-        
-        // Tu Public Key la encuentras en EmailJS -> Account -> API Keys
         const PUBLIC_KEY = 'jXgYL3f-YQRCWnt73';
 
-        // ✅ Plantilla del Cliente (la que verificamos juntas)
         await emailjs.send(SERVICE_ID, 'template_ryb35pl', parametrosEmail, PUBLIC_KEY);
-        
-        // ✅ Plantilla de la Administradora (la que verificamos juntas)
         await emailjs.send(SERVICE_ID, 'template_57r1qmt', parametrosEmail, PUBLIC_KEY);
         
         console.log("¡Correos enviados exitosamente!");
       } catch (emailError) {
         console.error('Error enviando el correo:', emailError);
       }
+      
       Swal.fire({
         icon: 'success',
         title: '¡Reserva Confirmada!',
