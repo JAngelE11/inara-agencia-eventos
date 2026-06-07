@@ -30,6 +30,9 @@ export class Admin implements OnInit {
   filtroEvento: string = '';
   filtroFecha: string = 'todos';
 
+  // ✅ Lista de meses necesaria para el filtro
+  nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
   statsEventos: { [key: string]: number } = {
     'Matrimonio': 0, '15 Años': 0, '50 Años': 0, 'Cumplekids': 0,
     'Baby Shower': 0, 'Bautizo / Comunión': 0, 'Graduación': 0,
@@ -58,6 +61,7 @@ export class Admin implements OnInit {
   }
 
   calcularEstadisticas() {
+    // Resetear stats
     Object.keys(this.statsEventos).forEach(key => this.statsEventos[key] = 0);
     this.reservas.forEach(reserva => {
       const tipo = reserva.tipoEvento;
@@ -95,30 +99,25 @@ export class Admin implements OnInit {
 
   aplicarFiltros() {
     this.reservasFiltradas = this.reservas.filter(reserva => {
-      // 1. Filtro por Busqueda (Nombre, ID o Codigo)
-      const busquedaCompleta = `${reserva.nombre} ${reserva.apellidos} ${reserva.codigoReserva || ''} ${reserva.id || ''}`.toLowerCase();
-      const cumpleBusqueda = this.terminoBusqueda === '' || busquedaCompleta.includes(this.terminoBusqueda.toLowerCase());
+      // Búsqueda segura (protegida contra valores null)
+      const nombre = `${reserva.nombre || ''} ${reserva.apellidos || ''}`.toLowerCase();
+      const codigo = (reserva.codigoReserva || '').toLowerCase();
+      const busquedaTotal = `${nombre} ${codigo} ${reserva.id || ''}`.toLowerCase();
       
-      // 2. Filtro por Tipo Evento
+      const cumpleBusqueda = this.terminoBusqueda === '' || busquedaTotal.includes(this.terminoBusqueda.toLowerCase());
       const cumpleEvento = this.filtroEvento === '' || reserva.tipoEvento === this.filtroEvento;
       
-      // 3. Filtro por Fecha (Mas seguro)
+      // Filtro de fecha seguro
       let cumpleFecha = true;
-      if (this.filtroFecha !== 'todos') {
-        // Solo intentamos filtrar si la fecha es distinta a 'todos'
-        // Si no podemos convertir la fecha, la dejamos visible para no perder datos
-        try {
-          const hoy = new Date();
-          // NOTA: Esta lógica es simple. Si necesitas precisión total, 
-          // guarda la fecha como Timestamp en Firebase en lugar de string.
-          if (this.filtroFecha === 'mes') {
-            cumpleFecha = reserva.fechaAsignada.toLowerCase().includes(this.nombresMeses[hoy.getMonth()].toLowerCase());
-          }
-        } catch (e) {
-          cumpleFecha = true; 
+      if (this.filtroFecha !== 'todos' && reserva.fechaAsignada) {
+        const hoy = new Date();
+        const mesActualNombre = this.nombresMeses[hoy.getMonth()];
+        
+        if (this.filtroFecha === 'mes') {
+            cumpleFecha = reserva.fechaAsignada.toLowerCase().includes(mesActualNombre);
         }
       }
-
+      
       return cumpleBusqueda && cumpleEvento && cumpleFecha;
     });
   }
