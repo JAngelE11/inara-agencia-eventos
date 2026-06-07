@@ -1,9 +1,8 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core'; // ✅ Añadimos ChangeDetectorRef
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
-// ⚠️ ESTA ES LA ÚNICA LÍNEA DE FIRESTORE QUE DEBE EXISTIR
 import { Firestore, collection, getDocs, doc, deleteDoc } from '@angular/fire/firestore';
 import { Auth, signOut } from '@angular/fire/auth';
 
@@ -23,6 +22,7 @@ export class Admin implements OnInit {
   private firestore = inject(Firestore);
   private auth = inject(Auth);
   private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef); // ✅ Inyectamos el detector de cambios
 
   cargando: boolean = true;
   reservas: any[] = [];
@@ -44,12 +44,14 @@ export class Admin implements OnInit {
 
   async ngOnInit() {
     try {
+      console.log("Conectando con la colección de reservas...");
       const citasRef = collection(this.firestore, 'reservas');
       const snapshot = await getDocs(citasRef);
       
+      console.log("Reservas obtenidas de Firestore:", snapshot.docs.length);
       const data = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
 
-      // 1. Ordenar por fecha de registro
+      // 1. Ordenar por fecha de registro (las más recientes primero)
       const datosOrdenados = data.sort((a: any, b: any) => {
         const fechaA = a.fechaRegistro ? new Date(a.fechaRegistro).getTime() : 0;
         const fechaB = b.fechaRegistro ? new Date(b.fechaRegistro).getTime() : 0;
@@ -61,15 +63,22 @@ export class Admin implements OnInit {
       this.reservasFiltradas = [...this.reservas];
       this.totalCitas = this.reservas.length;
 
-      // 3. Calcular estadísticas y dibujar el gráfico
+      // 3. Calcular estadísticas
       this.calcularEstadisticas();
+      
+      // 4. Desactivar el spinner y forzar actualización de la interfaz
       this.cargando = false;
+      this.cdr.detectChanges(); // 🔥 OBLIGA A REFRESCAR LA PANTALLA
 
-      setTimeout(() => this.renderizarGrafico(), 200);
+      setTimeout(() => {
+        this.renderizarGrafico();
+        this.cdr.detectChanges(); // 🔥 Refresca tras dibujar el gráfico
+      }, 200);
 
     } catch (error) {
       console.error("Error en inicialización:", error);
       this.cargando = false;
+      this.cdr.detectChanges(); // 🔥 Refresca incluso si hay error
     }
   }
 
@@ -88,9 +97,11 @@ export class Admin implements OnInit {
 
         return cumpleBusqueda && cumpleEvento && cumpleFecha;
       });
+      this.cdr.detectChanges(); // 🔥 Refresca la tabla después de filtrar
     } catch (error) {
       console.error("Error al filtrar:", error);
       this.reservasFiltradas = [...this.reservas];
+      this.cdr.detectChanges();
     }
   }
 
