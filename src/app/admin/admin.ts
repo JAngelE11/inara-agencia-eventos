@@ -2,8 +2,9 @@ import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Firestore, collection, getDocs, doc, deleteDoc, addDoc, updateDoc, query, where } from '@angular/fire/firestore';
+import { Firestore, collection, getDocs, doc, deleteDoc, addDoc, updateDoc, getDoc, setDoc, query, where } from '@angular/fire/firestore';
 import { Auth, signOut } from '@angular/fire/auth';
+import emailjs from '@emailjs/browser';
 import Swal from 'sweetalert2';
 import { Chart, registerables } from 'chart.js';
 
@@ -23,13 +24,24 @@ export class Admin implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   cargando: boolean = true;
+  pestanaActual: string = 'agenda'; 
+
   reservas: any[] = [];
   reservasFiltradas: any[] = [];
+  clientes: any[] = [];
+  
+  // Dashboard Metrics
   totalCitas: number = 0;
+  citasHoy: number = 0;
+  citasSemana: number = 0; 
+  citasMes: number = 0;
+  citasAnio: number = 0;
 
   terminoBusqueda: string = '';
   filtroEvento: string = '';
   filtroFecha: string = 'todos';
+  mesEspecifico: string = ''; // <--- NUEVA VARIABLE PARA EL FILTRO
+
   nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
   statsEventos: { [key: string]: number } = {
@@ -40,8 +52,16 @@ export class Admin implements OnInit {
 
   chart: any;
 
+  configuracion: any = {
+    horaInicio: '10:00',
+    horaFin: '18:00',
+    diasFeriados: ''
+  };
+
   async ngOnInit() {
     await this.cargarDatos();
+    await this.cargarClientes();
+    await this.cargarConfiguracion();
   }
 
   async cargarDatos() {
@@ -54,138 +74,252 @@ export class Admin implements OnInit {
       this.reservas = data.sort((a: any, b: any) => {
         const fechaA = a.fechaRegistro ? new Date(a.fechaRegistro).getTime() : 0;
         const fechaB = b.fechaRegistro ? new Date(b.fechaRegistro).getTime() : 0;
-        return fechaB - fechaA;
+        return fechaB - fechaA; 
       });
 
       this.reservasFiltradas = [...this.reservas];
       this.totalCitas = this.reservas.length;
-      this.calcularEstadisticas();
+      this.calcularMetricasDashboard();
+      this.calcularEstadisticas(); 
       this.cargando = false;
       this.cdr.detectChanges();
-      setTimeout(() => this.renderizarGrafico(), 200);
+      setTimeout(() => this.renderizarGrafico(), 200); 
     } catch (error) {
       console.error("Error cargando datos:", error);
       this.cargando = false;
     }
   }
 
-  // ==========================================
-  // RESERVA MANUAL CON CAMPO DE COMENTARIOS
-  // ==========================================
+  async cargarClientes() {
+    try {
+      const usuariosRef = collection(this.firestore, 'usuarios');
+      const snapshot = await getDocs(usuariosRef);
+      this.clientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Error cargando clientes", error);
+    }
+  }
+
+  async cargarConfiguracion() {
+    try {
+      const configRef = doc(this.firestore, 'configuracion', 'general');
+      const docSnap = await getDoc(configRef);
+      if (docSnap.exists()) {
+        this.configuracion = docSnap.data();
+      }
+    } catch (error) {
+      console.error("Error cargando config", error);
+    }
+  }
+
+  async guardarConfiguracion() {
+    try {
+      Swal.showLoading();
+      const configRef = doc(this.firestore, 'configuracion', 'general');
+      await setDoc(configRef, this.configuracion);
+      Swal.fire('¡Guardado!', 'La configuración de la agencia se actualizó.', 'success');
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo guardar la configuración.', 'error');
+    }
+  }
+
+  calcularMetricasDashboard() {
+    const fechaHoy = new Date();
+    const hoyFormateado = this.formatearFecha(fechaHoy.toISOString().split('T')[0]);
+    const mesActual = this.nombresMeses[fechaHoy.getMonth()];
+    const anioActual = fechaHoy.getFullYear().toString();
+
+    const despiazamientoLunes = fechaHoy.getDay() === 0 ? -6 : 1 - fechaHoy.getDay();
+    const lunesSemana = new Date(fechaHoy);
+    lunesSemana.setDate(fechaHoy.getDate() + despiazamientoLunes);
+    lunesSemana.setHours(0,0,0,0);
+
+    const domingoSemana = new Date(lunesSemana);
+    domingoSemana.setDate(lunesSemana.getDate() + 6);
+    domingoSemana.setHours(23,59,59,999);
+
+    this.citasHoy = this.reservas.filter(r => r.fechaAsignada === hoyFormateado).length;
+    this.citasMes = this.reservas.filter(r => r.fechaAsignada?.toLowerCase().includes(mesActual) && r.fechaAsignada?.includes(anioActual)).length;
+    this.citasAnio = this.reservas.filter(r => r.fechaAsignada?.includes(anioActual)).length;
+
+    this.citasSemana = this.reservas.filter(r => {
+      if (!r.fechaAsignada) return false;
+      try {
+        const partes = r.fechaAsignada.split(' de ');
+        const dia = parseInt(partes[0]);
+        const mesStr = partes[1].toLowerCase();
+        const anio = parseInt(partes[2]);
+        const mesIdx = this.nombresMeses.indexOf(mesStr);
+        if (mesIdx === -1) return false;
+        const fechaCita = new Date(anio, mesIdx, dia);
+        return fechaCita >= lunesSemana && fechaCita <= domingoSemana;
+      } catch (e) { return false; }
+    }).length;
+  }
+
+  async cambiarEstado(reserva: any, evento: any) {
+    const nuevoEstado = evento.target.value;
+    try {
+      const docRef = doc(this.firestore, 'reservas', reserva.id);
+      await updateDoc(docRef, { estado: nuevoEstado });
+      
+      if ((nuevoEstado === 'Confirmada' || nuevoEstado === 'Cancelada') && reserva.correo) {
+        const parametrosEmail = {
+          nombre_cliente: reserva.nombre,
+          correo_cliente: reserva.correo,
+          estado_cita: nuevoEstado,
+          codigo_reserva: reserva.codigoReserva,
+          fecha: reserva.fechaAsignada,
+          hora: reserva.horaAsignada
+        };
+      }
+      Swal.fire('Estado Actualizado', `La cita de ${reserva.nombre} ahora está ${nuevoEstado}.`, 'success');
+      this.cargarDatos(); 
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo actualizar el estado.', 'error');
+      this.cargarDatos(); 
+    }
+  }
+
+  // <--- LÓGICA DE FILTRADO CON MES ESPECÍFICO AÑADIDA AQUÍ --->
+  aplicarFiltros() {
+    this.reservasFiltradas = this.reservas.filter(reserva => {
+      const busquedaTotal = `${reserva.nombre || ''} ${reserva.apellidos || ''} ${reserva.codigoReserva || ''}`.toLowerCase();
+      const cumpleBusqueda = this.terminoBusqueda === '' || busquedaTotal.includes(this.terminoBusqueda.toLowerCase());
+      const cumpleEvento = this.filtroEvento === '' || reserva.tipoEvento === this.filtroEvento;
+      
+      let cumpleFecha = true;
+      const fechaHoy = new Date();
+      const hoyFormateado = this.formatearFecha(fechaHoy.toISOString().split('T')[0]);
+      const mesActualNombre = this.nombresMeses[fechaHoy.getMonth()];
+      const anioActualStr = fechaHoy.getFullYear().toString();
+
+      const despiazamientoLunes = fechaHoy.getDay() === 0 ? -6 : 1 - fechaHoy.getDay();
+      const lunesSemana = new Date(fechaHoy);
+      lunesSemana.setDate(fechaHoy.getDate() + despiazamientoLunes);
+      lunesSemana.setHours(0,0,0,0);
+      const domingoSemana = new Date(lunesSemana);
+      domingoSemana.setDate(lunesSemana.getDate() + 6);
+      domingoSemana.setHours(23,59,59,999);
+
+      if (this.filtroFecha === 'hoy') {
+        cumpleFecha = reserva.fechaAsignada === hoyFormateado;
+      } else if (this.filtroFecha === 'semana') {
+        if (!reserva.fechaAsignada) {
+          cumpleFecha = false;
+        } else {
+          try {
+            const partes = reserva.fechaAsignada.split(' de ');
+            const dia = parseInt(partes[0]);
+            const mesStr = partes[1].toLowerCase();
+            const anio = parseInt(partes[2]);
+            const mesIdx = this.nombresMeses.indexOf(mesStr);
+            if (mesIdx !== -1) {
+              const fechaCita = new Date(anio, mesIdx, dia);
+              cumpleFecha = fechaCita >= lunesSemana && fechaCita <= domingoSemana;
+            } else { cumpleFecha = false; }
+          } catch (e) { cumpleFecha = false; }
+        }
+      } else if (this.filtroFecha === 'mes') {
+        cumpleFecha = reserva.fechaAsignada?.toLowerCase().includes(mesActualNombre) && reserva.fechaAsignada?.includes(anioActualStr);
+      } else if (this.filtroFecha === 'mes_especifico' && this.mesEspecifico) {
+        const partesMes = this.mesEspecifico.split('-'); 
+        if(partesMes.length === 2) {
+          const anioEsp = partesMes[0];
+          const mesEspIndex = parseInt(partesMes[1]) - 1;
+          const nombreMesEsp = this.nombresMeses[mesEspIndex];
+          cumpleFecha = reserva.fechaAsignada?.toLowerCase().includes(nombreMesEsp) && reserva.fechaAsignada?.includes(anioEsp);
+        }
+      } else if (this.filtroFecha === 'anio') {
+        cumpleFecha = reserva.fechaAsignada?.includes(anioActualStr);
+      }
+      
+      return cumpleBusqueda && cumpleEvento && cumpleFecha;
+    });
+    this.cdr.detectChanges();
+  }
+
   async crearCitaAdmin() {
     const { value: formValues } = await Swal.fire({
-      title: '<h3 class="fw-bold" style="color: #198754; margin-bottom: 0;">Nueva Reserva Manual</h3><p class="text-muted small">Panel de Gestión Inara</p>',
+      title: '<h3 class="fw-bold" style="color: #198754; margin-bottom: 0;">Nueva Reserva Manual</h3>',
       width: '600px',
       html: `
         <style>
           .inara-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; }
-          .inara-input:focus { border-color: #198754; outline: none; box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25); }
-          .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+          .time-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
           .time-option { display: none; }
-          .time-label { display: block; padding: 10px; text-align: center; border: 1px solid #6c757d; border-radius: 20px; cursor: pointer; transition: all 0.3s; color: #6c757d; font-weight: bold; }
-          .time-option:checked + .time-label { background-color: #6c757d; color: white; border-color: #6c757d; }
-          .time-label:hover { background-color: #f8f9fa; }
+          .time-label { display: block; padding: 10px; text-align: center; border: 1px solid #6c757d; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+          .time-option:checked + .time-label { background-color: #198754; color: white; border-color: #198754; }
         </style>
-        
         <div class="text-start px-2">
-          <h6 class="fw-bold mb-2 text-dark">1. Datos del Cliente</h6>
-          <div class="row g-2">
-            <div class="col-6"><input id="swal-nombre" class="inara-input m-0" placeholder="Nombres"></div>
-            <div class="col-6"><input id="swal-apellidos" class="inara-input m-0" placeholder="Apellidos"></div>
-          </div>
+          <input id="swal-nombre" class="inara-input m-0 mt-2" placeholder="Nombres del Cliente">
           <input id="swal-celular" class="inara-input mt-2" placeholder="Celular (9 dígitos)">
-
-          <h6 class="fw-bold mb-3 mt-2 text-dark">2. Selecciona tu Fecha 📅</h6>
           <input id="swal-fecha" type="date" class="inara-input" min="${new Date().toISOString().split('T')[0]}">
-
-          <h6 class="fw-bold mb-3 mt-2 text-center text-dark">¿A qué hora? 🕒</h6>
-          <div class="time-grid">
-            <div>
-              <input type="radio" name="swal-hora" id="hora-13" value="13:00" class="time-option">
-              <label for="hora-13" class="time-label">13:00</label>
-            </div>
-            <div>
-              <input type="radio" name="swal-hora" id="hora-14" value="14:00" class="time-option">
-              <label for="hora-14" class="time-label">14:00</label>
-            </div>
-            <div>
-              <input type="radio" name="swal-hora" id="hora-15" value="15:00" class="time-option">
-              <label for="hora-15" class="time-label">15:00</label>
-            </div>
-            <div>
-              <input type="radio" name="swal-hora" id="hora-16" value="16:00" class="time-option">
-              <label for="hora-16" class="time-label">16:00</label>
-            </div>
+          
+          <h6 class="fw-bold mb-2 small text-secondary">Selecciona Horario (10 AM a 6 PM)</h6>
+          <div class="time-grid mt-2">
+            <div><input type="radio" name="swal-hora" id="hora-10" value="10:00" class="time-option"><label for="hora-10" class="time-label">10:00 AM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-11" value="11:00" class="time-option"><label for="hora-11" class="time-label">11:00 AM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-12" value="12:00" class="time-option"><label for="hora-12" class="time-label">12:00 PM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-13" value="13:00" class="time-option"><label for="hora-13" class="time-label">13:00 PM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-14" value="14:00" class="time-option"><label for="hora-14" class="time-label">14:00 PM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-15" value="15:00" class="time-option"><label for="hora-15" class="time-label">15:00 PM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-16" value="16:00" class="time-option"><label for="hora-16" class="time-label">16:00 PM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-17" value="17:00" class="time-option"><label for="hora-17" class="time-label">17:00 PM</label></div>
+            <div><input type="radio" name="swal-hora" id="hora-18" value="18:00" class="time-option"><label for="hora-18" class="time-label">18:00 PM</label></div>
           </div>
-
-          <h6 class="fw-bold mb-2 mt-3 text-dark">3. Detalles del Evento</h6>
+          
           <select id="swal-tipo" class="inara-input">
-            <option value="Otros eventos u cumpleaños">Otros eventos u cumpleaños</option>
             <option value="Matrimonio">Matrimonio</option>
             <option value="15 Años">15 Años</option>
+            <option value="50 Años">50 Años</option>
             <option value="Cumplekids">Cumplekids</option>
+            <option value="Baby Shower">Baby Shower</option>
+            <option value="Bautizo / Comunión">Bautizo / Comunión</option>
             <option value="Graduación">Graduación</option>
+            <option value="Evento Corporativo">Evento Corporativo</option>
+            <option value="Otros eventos u cumpleaños">Otros eventos u cumpleaños</option>
           </select>
           <select id="swal-modalidad" class="inara-input">
-            <option value="Virtual Zoom">Virtual Zoom</option>
             <option value="Presencial en oficina">Presencial en oficina</option>
+            <option value="Virtual Zoom">Virtual Zoom</option>
           </select>
-
-          <h6 class="fw-bold mb-2 mt-2 text-dark">4. Notas / Detalles Especiales 📝</h6>
-          <textarea id="swal-comentarios" class="inara-input" rows="3" placeholder="Ej. El cliente solicita presupuesto detallado de catering..."></textarea>
+          <textarea id="swal-comentarios" class="inara-input" rows="2" placeholder="Comentarios adicionales..."></textarea>
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'Confirmar Reserva',
-      cancelButtonText: 'Cancelar',
+      confirmButtonText: 'Guardar',
       confirmButtonColor: '#198754',
       preConfirm: async () => {
         const nombre = (document.getElementById('swal-nombre') as HTMLInputElement).value;
-        const apellidos = (document.getElementById('swal-apellidos') as HTMLInputElement).value;
         const celular = (document.getElementById('swal-celular') as HTMLInputElement).value;
         const fecha = (document.getElementById('swal-fecha') as HTMLInputElement).value;
         const tipo = (document.getElementById('swal-tipo') as HTMLInputElement).value;
         const modalidad = (document.getElementById('swal-modalidad') as HTMLInputElement).value;
         const comentarios = (document.getElementById('swal-comentarios') as HTMLTextAreaElement).value;
-        
         const horaSeleccionada = document.querySelector('input[name="swal-hora"]:checked') as HTMLInputElement;
         const hora = horaSeleccionada ? horaSeleccionada.value : null;
 
-        if (!nombre || !apellidos || !celular || !fecha || !hora) {
-          Swal.showValidationMessage('Por favor rellena todos los campos obligatorios.');
-          return;
-        }
+        if (!nombre || !fecha || !hora) { Swal.showValidationMessage('Nombre, fecha y hora son obligatorios.'); return; }
 
-        const citasRef = collection(this.firestore, 'reservas');
-        const q = query(citasRef, where('fechaAsignada', '==', this.formatearFecha(fecha)), where('horaAsignada', '==', hora));
-        const checkSnapshot = await getDocs(q);
-
-        if (!checkSnapshot.empty) {
-          Swal.showValidationMessage('Este horario ya está ocupado. Elige otra hora o fecha.');
-          return;
-        }
+        const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', this.formatearFecha(fecha)), where('horaAsignada', '==', hora)));
+        if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }
 
         return {
-          nombre, apellidos, celular, 
-          fechaAsignada: this.formatearFecha(fecha), 
-          horaAsignada: hora,
-          tipoEvento: tipo,
-          modalidad: modalidad,
-          comentarios: comentarios || 'Sin comentarios',
-          fechaRegistro: new Date().toISOString(),
-          codigoReserva: 'MAN-' + Math.random().toString(36).substring(2, 7).toUpperCase()
+          nombre, apellidos: '', celular, correo: '',
+          fechaAsignada: this.formatearFecha(fecha), horaAsignada: hora,
+          tipoEvento: tipo, modalidad, comentarios: comentarios || 'Sin comentarios',
+          estado: 'Confirmada', 
+          codigoReserva: 'MAN-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
+          fechaRegistro: new Date().toISOString()
         };
       }
     });
 
     if (formValues) {
-      try {
-        await addDoc(collection(this.firestore, 'reservas'), formValues);
-        await Swal.fire('¡Reservado!', 'La cita ha sido registrada con éxito.', 'success');
-        this.cargarDatos();
-      } catch (e) {
-        Swal.fire('Error', 'No se pudo guardar la reserva.', 'error');
-      }
+      await addDoc(collection(this.firestore, 'reservas'), formValues);
+      Swal.fire('¡Reservado!', 'La cita ha sido registrada.', 'success');
+      this.cargarDatos();
     }
   }
 
@@ -200,69 +334,37 @@ export class Admin implements OnInit {
       title: 'Reprogramar Cita',
       html: `
         <div class="text-start px-3">
-          <p class="small text-muted mb-3">Cliente: <b>${reserva.nombre} ${reserva.apellidos}</b></p>
-          <label class="small fw-bold text-muted">Nueva Fecha</label>
           <input id="repro-fecha" type="date" class="swal2-input w-100 m-0 mb-3" min="${new Date().toISOString().split('T')[0]}">
-          <label class="small fw-bold text-muted">Nueva Hora</label>
           <select id="repro-hora" class="swal2-select w-100 m-0">
+            <option value="10:00">10:00 AM</option>
+            <option value="11:00">11:00 AM</option>
+            <option value="12:00">12:00 MD</option>
             <option value="13:00">13:00 PM</option>
             <option value="14:00">14:00 PM</option>
             <option value="15:00">15:00 PM</option>
             <option value="16:00">16:00 PM</option>
+            <option value="17:00">17:00 PM</option>
+            <option value="18:00">18:00 PM</option>
           </select>
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'Actualizar Horario',
-      confirmButtonColor: '#0d6efd',
       preConfirm: async () => {
         const fecha = (document.getElementById('repro-fecha') as HTMLInputElement).value;
         const hora = (document.getElementById('repro-hora') as HTMLInputElement).value;
-
-        if (!fecha || !hora) {
-          Swal.showValidationMessage('Debes elegir fecha y hora');
-          return;
-        }
-
+        if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir fecha y hora'); return; }
         const fechaFormateada = this.formatearFecha(fecha);
-        const citasRef = collection(this.firestore, 'reservas');
-        const q = query(citasRef, where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora));
-        const checkSnapshot = await getDocs(q);
-
-        if (!checkSnapshot.empty) {
-          Swal.showValidationMessage('Este horario ya está ocupado por otra cita.');
-          return;
-        }
-
+        const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora)));
+        if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }
         return { fechaAsignada: fechaFormateada, horaAsignada: hora };
       }
     });
 
     if (formValues) {
-      try {
-        const docRef = doc(this.firestore, 'reservas', reserva.id);
-        await updateDoc(docRef, formValues);
-        Swal.fire('¡Reprogramado!', 'El horario ha sido actualizado.', 'success');
-        this.cargarDatos();
-      } catch (e) {
-        Swal.fire('Error', 'No se pudo actualizar.', 'error');
-      }
+      await updateDoc(doc(this.firestore, 'reservas', reserva.id), formValues);
+      Swal.fire('¡Reprogramado!', 'El horario ha sido actualizado.', 'success');
+      this.cargarDatos();
     }
-  }
-
-  aplicarFiltros() {
-    this.reservasFiltradas = this.reservas.filter(reserva => {
-      const busquedaTotal = `${reserva.nombre || ''} ${reserva.apellidos || ''} ${reserva.codigoReserva || ''}`.toLowerCase();
-      const cumpleBusqueda = this.terminoBusqueda === '' || busquedaTotal.includes(this.terminoBusqueda.toLowerCase());
-      const cumpleEvento = this.filtroEvento === '' || reserva.tipoEvento === this.filtroEvento;
-      let cumpleFecha = true;
-      if (this.filtroFecha === 'mes' && reserva.fechaAsignada) {
-        const mesActual = this.nombresMeses[new Date().getMonth()];
-        cumpleFecha = reserva.fechaAsignada.toLowerCase().includes(mesActual);
-      }
-      return cumpleBusqueda && cumpleEvento && cumpleFecha;
-    });
-    this.cdr.detectChanges();
   }
 
   calcularEstadisticas() {
@@ -300,45 +402,20 @@ export class Admin implements OnInit {
     } catch (error) { console.error("Error gráfico:", error); }
   }
 
-  // EXPORTACIÓN EXCEL MEJORADA CON COMENTARIOS
   exportarAExcel() {
-    if (this.reservasFiltradas.length === 0) { Swal.fire({ icon: 'info', title: 'Sin datos', text: 'No hay registros.' }); return; }
-    const headers = ['Codigo', 'Cliente', 'Correo', 'Celular', 'Tipo Evento', 'Modalidad', 'Fecha', 'Hora', 'Detalles/Comentarios'];
-    const filas = this.reservasFiltradas.map(r => [
-      `"${r.codigoReserva || ''}"`, 
-      `"${r.nombre} ${r.apellidos}"`, 
-      `"${r.correo || ''}"`, 
-      `"${r.celular || ''}"`, 
-      `"${r.tipoEvento}"`, 
-      `"${r.modalidad}"`, 
-      `"${r.fechaAsignada}"`, 
-      `"${r.horaAsignada}"`,
-      `"${r.comentarios || 'Sin comentarios'}"`
-    ]);
-    const contenidoCsv = [headers.join(';'), ...filas.map(e => e.join(';'))].join('\n');
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), contenidoCsv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Reporte_Citas_INARA.csv`;
-    link.click();
+    if (this.reservasFiltradas.length === 0) return;
+    const headers = ['Codigo', 'Cliente', 'Celular', 'Estado', 'Fecha', 'Hora'];
+    const filas = this.reservasFiltradas.map(r => [`"${r.codigoReserva}"`, `"${r.nombre}"`, `"${r.celular}"`, `"${r.estado}"`, `"${r.fechaAsignada}"`, `"${r.horaAsignada}"`]);
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), [headers.join(';'), ...filas.map(e => e.join(';'))].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `Reporte_Citas.csv`; link.click();
   }
 
   async cancelarCita(id: string, nombre: string) {
-    const result = await Swal.fire({
-      title: `¿Cancelar cita de ${nombre}?`,
-      text: 'Esta acción no se puede deshacer',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Volver',
-      confirmButtonColor: '#dc3545'
-    });
+    const result = await Swal.fire({ title: `¿Eliminar cita?`, icon: 'warning', showCancelButton: true, confirmButtonText: 'Eliminar', confirmButtonColor: '#dc3545' });
     if (result.isConfirmed) {
-      try {
-        await deleteDoc(doc(this.firestore, 'reservas', id));
-        Swal.fire('Eliminada', 'La reserva ha sido borrada.', 'success');
-        this.cargarDatos();
-      } catch (e) { Swal.fire('Error', 'No se pudo eliminar.', 'error'); }
+      await deleteDoc(doc(this.firestore, 'reservas', id));
+      Swal.fire('Eliminada', 'La reserva ha sido borrada.', 'success');
+      this.cargarDatos();
     }
   }
 

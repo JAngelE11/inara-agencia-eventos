@@ -22,8 +22,11 @@ export class Calendario implements OnInit {
 
   tipoEvento: string = ''; 
   modalidad: string = ''; 
-  comentariosCliente: string = ''; // NUEVA VARIABLE PARA COMENTARIOS
+  comentariosCliente: string = ''; 
   usuarioDatos: any = {}; 
+
+  configuracionAgencia: any = null;
+  feriadosArray: string[] = [];
 
   mesActual: number = new Date().getMonth();
   anioActual: number = new Date().getFullYear();
@@ -37,7 +40,8 @@ export class Calendario implements OnInit {
   horaSeleccionada: string = '';
   cargandoHoras: boolean = false;
 
-  ngOnInit() {
+  async ngOnInit() {
+    await this.cargarConfiguracion(); 
     this.generarCalendario();
 
     onAuthStateChanged(this.auth, async (user) => {
@@ -58,6 +62,19 @@ export class Calendario implements OnInit {
         this.router.navigate(['/login']);
       }
     });
+  }
+
+  async cargarConfiguracion() {
+    try {
+      const configRef = doc(this.firestore, 'configuracion', 'general');
+      const docSnap = await getDoc(configRef);
+      if (docSnap.exists()) {
+        this.configuracionAgencia = docSnap.data();
+        if (this.configuracionAgencia.diasFeriados) {
+          this.feriadosArray = this.configuracionAgencia.diasFeriados.split(',').map((f: string) => f.trim().toLowerCase());
+        }
+      }
+    } catch (e) { console.error("Error obteniendo configuración", e); }
   }
 
   generarCalendario() {
@@ -91,15 +108,19 @@ export class Calendario implements OnInit {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    if (fecha < hoy) return true;
-    if (fecha.getDay() === 0) return true;
+    if (fecha < hoy) return true; 
+    if (fecha.getDay() === 0) return true; 
+
+    const fechaFormateada = `${dia} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
+    if (this.feriadosArray.includes(fechaFormateada.toLowerCase())) {
+      return true;
+    }
 
     return false;
   }
 
   async seleccionarDia(dia: number) {
     if (this.esDiaInvalido(dia)) return;
-
     this.diaSeleccionado = dia;
     this.horaSeleccionada = '';
     await this.cargarHorasDisponibles();
@@ -113,9 +134,19 @@ export class Calendario implements OnInit {
     const fechaSeleccionada = new Date(this.anioActual, this.mesActual, this.diaSeleccionado!);
     const diaSemana = fechaSeleccionada.getDay();
 
-    const baseHoras = diaSemana === 6
-      ? ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00']
-      : ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+    let baseHoras: string[] = [];
+    if (this.configuracionAgencia && this.configuracionAgencia.horaInicio && this.configuracionAgencia.horaFin) {
+      const horaInicioNum = parseInt(this.configuracionAgencia.horaInicio.split(':')[0]);
+      let horaFinNum = parseInt(this.configuracionAgencia.horaFin.split(':')[0]);
+      
+      if (diaSemana === 6) horaFinNum = Math.min(horaFinNum, 15);
+
+      for (let i = horaInicioNum; i <= horaFinNum; i++) {
+        baseHoras.push(`${i}:00`);
+      }
+    } else {
+      baseHoras = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+    }
 
     const fechaCompleta = `${this.diaSeleccionado} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
     const hoy = new Date();
@@ -125,7 +156,9 @@ export class Calendario implements OnInit {
       const q = query(reservasRef, where('fechaAsignada', '==', fechaCompleta));
       const querySnapshot = await getDocs(q);
 
-      const horasOcupadas = querySnapshot.docs.map(doc => doc.data()['horaAsignada']);
+      const horasOcupadas = querySnapshot.docs
+        .filter(doc => doc.data()['estado'] !== 'Cancelada') 
+        .map(doc => doc.data()['horaAsignada']);
 
       const esHoy = (this.diaSeleccionado === hoy.getDate() && this.mesActual === hoy.getMonth() && this.anioActual === hoy.getFullYear());
       const horaActual = hoy.getHours();
@@ -143,13 +176,7 @@ export class Calendario implements OnInit {
       });
 
     } catch (e) {
-      console.error('Error consultando base de datos:', e);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error de conexión',
-        text: 'Hubo un error al conectar con la agenda. Revisa tu conexión a internet.',
-        confirmButtonColor: '#198754'
-      });
+      console.error('Error consultando BD:', e);
     } finally {
       this.cargandoHoras = false;
       this.cdr.detectChanges();
@@ -161,47 +188,14 @@ export class Calendario implements OnInit {
   }
 
   async confirmarCita() {
-    if (!this.diaSeleccionado || !this.horaSeleccionada) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Faltan datos',
-        text: 'Por favor, selecciona un día y una hora en el calendario primero.',
-        confirmButtonColor: '#198754'
-      });
-      return;
-    }
-
-    if (!this.tipoEvento || !this.modalidad) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Casi listo',
-        text: 'Por favor, selecciona el Tipo de Evento y la Modalidad de la reunión.',
-        confirmButtonColor: '#198754'
-      });
-      return;
-    }
-
-    // VALIDACIÓN DEL NUEVO CAMPO DE CELULAR
-    if (!this.usuarioDatos.celular || String(this.usuarioDatos.celular).trim().length < 9) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Número de Celular requerido',
-        text: 'Por favor, ingresa un número de celular válido para poder contactarte sobre tu reserva.',
-        confirmButtonColor: '#198754'
-      });
+    if (!this.diaSeleccionado || !this.horaSeleccionada || !this.tipoEvento || !this.modalidad || !this.usuarioDatos.celular) {
+      Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Completa todos los campos obligatorios.', confirmButtonColor: '#198754' });
       return;
     }
 
     const fechaCompleta = `${this.diaSeleccionado} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
 
-    Swal.fire({
-      title: 'Procesando reserva...',
-      text: 'Estamos guardando tu espacio y enviando las confirmaciones, un momento por favor.',
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      }
-    });
+    Swal.fire({ title: 'Procesando reserva...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     try {
       const idFormateado = fechaCompleta.replace(/\s+/g, '-'); 
@@ -213,19 +207,18 @@ export class Calendario implements OnInit {
 
       await runTransaction(this.firestore, async (transaction) => {
         const citaSnapshot = await transaction.get(citaDocRef);
-
-        if (citaSnapshot.exists()) {
+        if (citaSnapshot.exists() && citaSnapshot.data()['estado'] !== 'Cancelada') {
           throw new Error('HORARIO_OCUPADO');
         }
 
         transaction.set(citaDocRef, {
           nombre: this.usuarioDatos.nombre || 'Cliente web',
           apellidos: this.usuarioDatos.apellidos || '',
-          celular: this.usuarioDatos.celular, // Guardando el celular actualizado
+          celular: this.usuarioDatos.celular,
           correo: this.usuarioDatos.correo || '',
           tipoEvento: this.tipoEvento, 
           modalidad: this.modalidad, 
-          comentarios: this.comentariosCliente || 'Sin comentarios', // Guardando los comentarios
+          comentarios: this.comentariosCliente || 'Sin comentarios',
           fechaAsignada: fechaCompleta,
           horaAsignada: this.horaSeleccionada,
           estado: 'Pendiente de Confirmacion',
@@ -234,62 +227,34 @@ export class Calendario implements OnInit {
         });
       });
 
-      // 🚀 ENVÍO AUTOMÁTICO DE CORREOS ELECTRÓNICOS
       const parametrosEmail = {
-        nombre_cliente: `${this.usuarioDatos.nombre || 'Cliente'} ${this.usuarioDatos.apellidos || ''}`,
+        nombre_cliente: `${this.usuarioDatos.nombre} ${this.usuarioDatos.apellidos}`,
         correo_cliente: this.usuarioDatos.correo,
         celular_cliente: this.usuarioDatos.celular,
         codigo_reserva: codigoReservaGenerado,
         tipo_evento: this.tipoEvento,
-        modalidad: this.modalidad,
         fecha: fechaCompleta,
         hora: this.horaSeleccionada,
-        comentarios: this.comentariosCliente || 'Sin comentarios', // Enviando comentarios al correo (opcional si lo pones en tu plantilla EmailJS)
-        id_reserva: ID_UNICO_BLOQUEO
+        id_reserva: ID_UNICO_BLOQUEO,
+        link_cancelacion: `https://inara-agencia.web.app/cancelar?id=${ID_UNICO_BLOQUEO}`
       };
 
       try {
         const SERVICE_ID = 'service_0u27b6y'; 
         const PUBLIC_KEY = 'jXgYL3f-YQRCWnt73';
-
         await emailjs.send(SERVICE_ID, 'template_ryb35pl', parametrosEmail, PUBLIC_KEY);
         await emailjs.send(SERVICE_ID, 'template_57r1qmt', parametrosEmail, PUBLIC_KEY);
-        
-        console.log("¡Correos enviados exitosamente!");
-      } catch (emailError) {
-        console.error('Error enviando el correo:', emailError);
-      }
+      } catch (emailError) { console.error(emailError); }
       
-      Swal.fire({
-        icon: 'success',
-        title: '¡Reserva Confirmada!',
-        text: 'Tu cita ha sido agendada con éxito. Te hemos enviado un correo con los detalles.',
-        confirmButtonColor: '#198754',
-        confirmButtonText: 'Ir a mi panel ✨'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          this.router.navigate(['/panel-cliente']);
-        }
-      });
+      Swal.fire('¡Reserva Confirmada!', 'Tu cita ha sido agendada con éxito.', 'success')
+      .then((r) => { if (r.isConfirmed) this.router.navigate(['/panel-cliente']); });
 
     } catch (e: any) {
-      console.error(e);
-      
       if (e.message === 'HORARIO_OCUPADO') {
-        Swal.fire({
-          icon: 'error',
-          title: 'Horario no disponible',
-          text: '¡Oops! Otro cliente acaba de reservar esta misma hora hace unos instantes. Por favor, selecciona otro horario.',
-          confirmButtonColor: '#198754'
-        });
+        Swal.fire('Horario no disponible', 'Otro cliente acaba de reservar esta hora.', 'error');
         this.cargarHorasDisponibles();
       } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Oops...',
-          text: 'Hubo un problema de conexión. Inténtalo de nuevo.',
-          confirmButtonColor: '#d33'
-        });
+        Swal.fire('Oops...', 'Hubo un problema de conexión.', 'error');
       }
     }
   }

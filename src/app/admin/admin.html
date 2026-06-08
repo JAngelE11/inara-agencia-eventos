@@ -1,143 +1,497 @@
-<div class="container mt-5 mb-5" style="min-height: 80vh;">
+<div class="container mt-4 mb-5" style="min-height: 80vh;">
+
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+
     <div class="d-flex align-items-center">
+
       <div>
+
         <h3 class="fw-bold mb-0 text-success" style="letter-spacing: 2px; line-height: 1;">INARA</h3>
+
         <span class="text-muted fw-bold" style="font-size: 0.75rem;">Agencia de Eventos</span>
+
       </div>
+
       <div class="mx-3 border-start border-2" style="height: 35px;"></div>
+
       <h4 class="fw-bold m-0 text-dark">Panel de Control ⚙️</h4>
+
     </div>
+
     <div>
+
       <a routerLink="/inicio" class="text-muted fw-bold text-decoration-none small me-3" style="cursor: pointer;">← Volver al Inicio</a>
+
       <a (click)="cerrarSesion()" class="text-danger fw-bold text-decoration-none small shadow-sm px-3 py-2 bg-white rounded-pill border" style="cursor: pointer;">Cerrar Sesión 🔒</a>
+
     </div>
+
   </div>
+
+
 
   <div *ngIf="cargando" class="text-center my-5">
+
     <div class="spinner-border text-success" role="status"></div>
-    <p class="text-muted mt-2">Cargando datos de Firestore...</p>
+
+    <p class="text-muted mt-2">Cargando datos del sistema...</p>
+
   </div>
+
+
 
   <div *ngIf="!cargando">
-    <div class="row mb-4 align-items-stretch">
-      <div class="col-md-3 mb-3">
-        <div class="card shadow-sm border-0 bg-light text-center h-100 p-4 d-flex justify-content-center" style="border-radius: 15px;">
-          <h6 class="fw-bold text-secondary mb-3">Total Reservas</h6>
-          <h1 class="display-1 fw-bold text-success m-0">{{ totalCitas }}</h1>
+
+    <div class="row mb-4 g-3">
+
+      <div class="col-md-3">
+
+        <div class="card shadow-sm border-0 bg-success text-white text-center p-3" style="border-radius: 12px;">
+
+          <h6 class="fw-bold mb-1 opacity-75">Citas de Hoy</h6>
+
+          <h2 class="fw-bold m-0">{{ citasHoy }}</h2>
+
         </div>
+
       </div>
-      <div class="col-md-4 mb-3">
-        <div class="card shadow-sm border-0 h-100 p-4 d-flex align-items-center justify-content-center" style="border-radius: 15px;">
-          <h6 class="fw-bold text-secondary w-100 mb-3 text-center">Distribución de Eventos</h6>
-          <div style="width: 100%; max-width: 220px;">
-            <canvas id="graficoEventos"></canvas>
-          </div>
+
+      <div class="col-md-3">
+
+        <div class="card shadow-sm border-0 bg-warning text-dark text-center p-3" style="border-radius: 12px;">
+
+          <h6 class="fw-bold mb-1 opacity-75">Citas de la Semana</h6>
+
+          <h2 class="fw-bold m-0">{{ citasSemana }}</h2>
+
         </div>
+
       </div>
-      <div class="col-md-5 mb-3">
-        <div class="card shadow-sm border-0 h-100 p-4 overflow-auto" style="border-radius: 15px; max-height: 280px;">
-          <h6 class="fw-bold text-secondary mb-3">Estadísticas Detalladas</h6>
-          <ng-container *ngFor="let item of statsEventos | keyvalue">
-            <div class="mb-3" *ngIf="item.value > 0">
-              <div class="d-flex justify-content-between small fw-bold mb-1">
-                <span class="text-truncate" style="max-width: 70%;">{{ item.key }} ({{ item.value }})</span>
-                <span>{{ calcularPorcentaje(item.value) }}%</span>
-              </div>
-              <div class="progress" style="height: 6px;">
-                <div class="progress-bar bg-success" [style.width.%]="calcularPorcentaje(item.value)"></div>
-              </div>
-            </div>
-          </ng-container>
+
+      <div class="col-md-3">
+
+        <div class="card shadow-sm border-0 bg-primary text-white text-center p-3" style="border-radius: 12px;">
+
+          <h6 class="fw-bold mb-1 opacity-75">Citas del Mes</h6>
+
+          <h2 class="fw-bold m-0">{{ citasMes }}</h2>
+
         </div>
+
       </div>
+
+      <div class="col-md-3">
+
+        <div class="card shadow-sm border-0 bg-info text-dark text-center p-3" style="border-radius: 12px;">
+
+          <h6 class="fw-bold mb-1 opacity-75">Citas del Año</h6>
+
+          <h2 class="fw-bold m-0">{{ citasAnio }}</h2>
+
+        </div>
+
+      </div>
+
     </div>
 
-    <div class="card shadow-sm border-0 p-4" style="border-radius: 15px;">
+
+
+    <div class="row mb-4 align-items-stretch">
+
+      <div class="col-md-4 mb-3">
+
+        <div class="card shadow-sm border-0 h-100 p-4 d-flex align-items-center justify-content-center" style="border-radius: 15px;">
+
+          <h6 class="fw-bold text-secondary w-100 mb-3 text-center">Distribución de Eventos</h6>
+
+          <div style="width: 100%; max-width: 220px;">
+
+            <canvas id="graficoEventos"></canvas>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="col-md-8 mb-3">
+
+        <div class="card shadow-sm border-0 h-100 p-4 overflow-auto" style="border-radius: 15px; max-height: 280px;">
+
+          <h6 class="fw-bold text-secondary mb-3">Estadísticas Detalladas (% y Cantidad)</h6>
+
+          <ng-container *ngFor="let item of statsEventos | keyvalue">
+
+            <div class="mb-3" *ngIf="item.value > 0">
+
+              <div class="d-flex justify-content-between small fw-bold mb-1">
+
+                <span class="text-truncate" style="max-width: 70%;">{{ item.key }} ({{ item.value }} citas)</span>
+
+                <span>{{ calcularPorcentaje(item.value) }}%</span>
+
+              </div>
+
+              <div class="progress" style="height: 6px;">
+
+                <div class="progress-bar bg-success" [style.width.%]="calcularPorcentaje(item.value)"></div>
+
+              </div>
+
+            </div>
+
+          </ng-container>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
+    <ul class="nav nav-tabs mb-4 border-success">
+
+      <li class="nav-item">
+
+        <a class="nav-link text-dark fw-bold" [class.active]="pestanaActual === 'agenda'" (click)="pestanaActual = 'agenda'" style="cursor: pointer; border-radius: 10px 10px 0 0;">📅 Agenda de Citas</a>
+
+      </li>
+
+      <li class="nav-item">
+
+        <a class="nav-link text-dark fw-bold" [class.active]="pestanaActual === 'clientes'" (click)="pestanaActual = 'clientes'" style="cursor: pointer; border-radius: 10px 10px 0 0;">👥 Base de Clientes</a>
+
+      </li>
+
+      <li class="nav-item">
+
+        <a class="nav-link text-dark fw-bold" [class.active]="pestanaActual === 'config'" (click)="pestanaActual = 'config'" style="cursor: pointer; border-radius: 10px 10px 0 0;">⚙️ Configuración (Horarios)</a>
+
+      </li>
+
+    </ul>
+
+
+
+    <div class="card shadow-sm border-0 p-4" style="border-radius: 15px;" *ngIf="pestanaActual === 'agenda'">
+
       <div class="d-flex justify-content-between align-items-center mb-4">
-        <h5 class="fw-bold m-0">Agenda General de Citas</h5>
+
+        <h5 class="fw-bold m-0">Gestión de Reservas</h5>
+
         <button class="btn btn-success fw-bold shadow-sm" (click)="crearCitaAdmin()">
-          <i class="fa-solid fa-plus me-2"></i>Nueva Reserva para Cliente
+
+          <i class="fa-solid fa-plus me-2"></i>Nueva Reserva Manual
+
         </button>
+
       </div>
+
       
-      <div class="row g-3 mb-4 align-items-end bg-light p-3 rounded" style="border: 1px solid #eee;">
+
+      <div class="row g-2 mb-4 align-items-end bg-light p-3 rounded" style="border: 1px solid #eee;">
+
         <div class="col-md-3">
-          <label class="form-label small fw-bold text-secondary">🔍 Buscar Cliente / ID</label>
-          <input type="text" class="form-control bg-white" placeholder="Ej: Carlos..." [(ngModel)]="terminoBusqueda">
+
+          <label class="form-label small fw-bold text-secondary">🔍 Buscar (Nombre/Cod)</label>
+
+          <input type="text" class="form-control form-control-sm bg-white" placeholder="Ej: Carlos..." [(ngModel)]="terminoBusqueda">
+
         </div>
+
         <div class="col-md-3">
+
           <label class="form-label small fw-bold text-secondary">🎯 Tipo Evento</label>
-          <select class="form-select bg-white" [(ngModel)]="filtroEvento">
+
+          <select class="form-select form-select-sm bg-white" [(ngModel)]="filtroEvento">
+
             <option value="">Todos los eventos</option>
+
             <option value="Matrimonio">Matrimonio</option>
+
             <option value="15 Años">15 Años</option>
+
+            <option value="50 Años">50 Años</option>
+
             <option value="Cumplekids">Cumplekids</option>
+
+            <option value="Baby Shower">Baby Shower</option>
+
+            <option value="Bautizo / Comunión">Bautizo / Comunión</option>
+
             <option value="Graduación">Graduación</option>
+
+            <option value="Evento Corporativo">Evento Corporativo</option>
+
             <option value="Otros eventos u cumpleaños">Otros</option>
+
           </select>
+
         </div>
+
         <div class="col-md-2">
-          <label class="form-label small fw-bold text-secondary">📅 Filtro Mes</label>
-          <select class="form-select bg-white" [(ngModel)]="filtroFecha">
-            <option value="todos">Cualquier Mes</option>
+
+          <label class="form-label small fw-bold text-secondary">📅 Tiempo</label>
+
+          <select class="form-select form-select-sm bg-white" [(ngModel)]="filtroFecha" [ngClass]="{'mb-1': filtroFecha === 'mes_especifico'}">
+
+            <option value="todos">Todos</option>
+
+            <option value="hoy">Hoy</option>
+
+            <option value="semana">Semana Actual</option>
+
             <option value="mes">Mes Actual</option>
+
+            <option value="mes_especifico">Mes Específico...</option>
+
+            <option value="anio">Año en Curso</option>
+
           </select>
+
+          <input *ngIf="filtroFecha === 'mes_especifico'" type="month" class="form-control form-control-sm border-success shadow-sm" [(ngModel)]="mesEspecifico">
+
         </div>
+
         <div class="col-md-2">
-          <button class="btn btn-primary w-100 fw-bold shadow-sm" (click)="aplicarFiltros()">Filtrar</button>
+
+          <button class="btn btn-primary btn-sm w-100 fw-bold shadow-sm" (click)="aplicarFiltros()">Filtrar</button>
+
         </div>
+
         <div class="col-md-2">
-          <button class="btn btn-outline-dark w-100 fw-bold shadow-sm" (click)="exportarAExcel()">📄 CSV</button>
+
+          <button class="btn btn-outline-dark btn-sm w-100 fw-bold shadow-sm" (click)="exportarAExcel()">📄 Exportar CSV</button>
+
         </div>
+
       </div>
+
+
 
       <div class="table-responsive">
-        <table class="table align-middle">
-          <thead>
+
+        <table class="table align-middle table-hover">
+
+          <thead class="table-light">
+
             <tr class="text-secondary small">
+
               <th>Cliente</th>
+
               <th>Contacto</th>
-              <th>Detalles</th>
-              <th>Programación</th>
+
+              <th>Evento</th>
+
+              <th>Horario</th>
+
+              <th>Estado</th>
+
               <th>Acciones</th>
+
             </tr>
+
           </thead>
+
           <tbody>
+
             <tr *ngFor="let reserva of reservasFiltradas">
+
               <td>
-                <div class="fw-bold">{{ reserva.nombre }} {{ reserva.apellidos }}</div>
+
+                <div class="fw-bold text-dark">{{ reserva.nombre }} {{ reserva.apellidos }}</div>
+
                 <div class="small text-muted" style="font-size: 0.75rem;">🆔 {{ reserva.codigoReserva }}</div>
+
               </td>
+
               <td>
-                <div class="small">📱 {{ reserva.celular }}</div>
-                <div class="small text-muted">✉️ {{ reserva.correo || 'S/N' }}</div>
+
+                <div class="small">📱 {{ reserva.celular || 'S/N' }}</div>
+
+                <div class="small text-muted" style="font-size: 0.75rem;">✉️ {{ reserva.correo || 'Manual' }}</div>
+
               </td>
+
               <td>
-                <span class="badge bg-success me-2">{{ reserva.tipoEvento }}</span>
-                <span class="badge bg-info text-dark">{{ reserva.modalidad }}</span>
-              </td>
-              <td>
-                <div class="fw-bold small text-nowrap">📅 {{ reserva.fechaAsignada }}</div>
-                <div class="small text-dark mt-1"><i class="fa-regular fa-clock me-1"></i>{{ reserva.horaAsignada }}</div>
-              </td>
-              <td>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-outline-primary btn-sm fw-bold" (click)="reprogramarCita(reserva)" title="Reprogramar">
-                    <i class="fa-solid fa-calendar-days"></i>
-                  </button>
-                  <button class="btn btn-outline-danger btn-sm fw-bold" (click)="cancelarCita(reserva.id, reserva.nombre)" title="Cancelar">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
+
+                <span class="badge bg-success me-1">{{ reserva.tipoEvento }}</span>
+
+                <span class="badge border border-secondary text-secondary">{{ reserva.modalidad }}</span>
+
+                <div *ngIf="reserva.comentarios && reserva.comentarios !== 'Sin comentarios'" class="small text-muted mt-1 text-truncate" style="max-width: 150px;" [title]="reserva.comentarios">
+
+                  💬 {{ reserva.comentarios }}
+
                 </div>
+
               </td>
+
+              <td>
+
+                <div class="fw-bold small text-nowrap">📅 {{ reserva.fechaAsignada }}</div>
+
+                <div class="small text-dark mt-1"><i class="fa-regular fa-clock me-1"></i>{{ reserva.horaAsignada }}</div>
+
+              </td>
+
+              <td>
+
+                <select class="form-select form-select-sm shadow-sm" style="font-size: 0.8rem; font-weight: bold;"
+
+                        [ngClass]="{'border-warning text-warning': reserva.estado === 'Pendiente de Confirmacion', 'border-success text-success': reserva.estado === 'Confirmada', 'border-danger text-danger': reserva.estado === 'Cancelada'}"
+
+                        (change)="cambiarEstado(reserva, $event)">
+
+                  <option value="Pendiente de Confirmacion" [selected]="reserva.estado === 'Pendiente de Confirmacion'">🟡 Pendiente</option>
+
+                  <option value="Confirmada" [selected]="reserva.estado === 'Confirmada'">🟢 Confirmada</option>
+
+                  <option value="Realizada" [selected]="reserva.estado === 'Realizada'">🔵 Realizada</option>
+
+                  <option value="Cancelada" [selected]="reserva.estado === 'Cancelada'">🔴 Cancelada</option>
+
+                </select>
+
+              </td>
+
+              <td>
+
+                <div class="d-flex gap-2">
+
+                  <button class="btn btn-outline-primary btn-sm fw-bold" (click)="reprogramarCita(reserva)" title="Reprogramar">
+
+                    <i class="fa-solid fa-calendar-days"></i>
+
+                  </button>
+
+                  <button class="btn btn-outline-danger btn-sm fw-bold" (click)="cancelarCita(reserva.id, reserva.nombre)" title="Eliminar">
+
+                    <i class="fa-solid fa-trash"></i>
+
+                  </button>
+
+                </div>
+
+              </td>
+
             </tr>
+
             <tr *ngIf="reservasFiltradas.length === 0">
-              <td colspan="5" class="text-center text-muted py-4">No se encontraron registros.</td>
+
+              <td colspan="6" class="text-center text-muted py-4">No se encontraron reservas con esos filtros.</td>
+
             </tr>
+
           </tbody>
+
         </table>
+
       </div>
+
     </div>
+
+
+
+    <div class="card shadow-sm border-0 p-4" style="border-radius: 15px;" *ngIf="pestanaActual === 'clientes'">
+
+      <h5 class="fw-bold mb-4">Base de Clientes Registrados</h5>
+
+      <div class="table-responsive">
+
+        <table class="table align-middle table-hover">
+
+          <thead class="table-light">
+
+            <tr class="text-secondary small">
+
+              <th>Nombre Completo</th>
+
+              <th>Correo Electrónico</th>
+
+              <th>Celular</th>
+
+              <th>ID Sistema</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            <tr *ngFor="let cliente of clientes">
+
+              <td class="fw-bold text-dark">{{ cliente.nombre }} {{ cliente.apellidos }}</td>
+
+              <td class="text-muted">{{ cliente.email || cliente.correo }}</td>
+
+              <td>{{ cliente.celular || 'No registrado' }}</td>
+
+              <td class="small text-muted">{{ cliente.id }}</td>
+
+            </tr>
+
+            <tr *ngIf="clientes.length === 0">
+
+              <td colspan="4" class="text-center text-muted py-4">No hay clientes registrados en la base de datos.</td>
+
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="card shadow-sm border-0 p-4" style="border-radius: 15px;" *ngIf="pestanaActual === 'config'">
+
+      <h5 class="fw-bold mb-4">Configuración de la Agencia</h5>
+
+      <div class="row">
+
+        <div class="col-md-6 mb-3">
+
+          <label class="form-label fw-bold small text-secondary">Hora de Apertura</label>
+
+          <input type="time" class="form-control" [(ngModel)]="configuracion.horaInicio">
+
+        </div>
+
+        <div class="col-md-6 mb-3">
+
+          <label class="form-label fw-bold small text-secondary">Hora de Cierre</label>
+
+          <input type="time" class="form-control" [(ngModel)]="configuracion.horaFin">
+
+        </div>
+
+        <div class="col-12 mb-3">
+
+          <label class="form-label fw-bold small text-secondary">Días Feriados o Vacaciones (Fechas exactas separadas por coma)</label>
+
+          <textarea class="form-control" rows="3" [(ngModel)]="configuracion.diasFeriados" placeholder="Ej: 28 de julio de 2026, 25 de diciembre de 2026"></textarea>
+
+          <div class="form-text small">Estas fechas se bloquearán automáticamente en el calendario de los clientes.</div>
+
+        </div>
+
+        <div class="col-12 mt-3 text-end">
+
+          <button class="btn btn-success fw-bold px-5" (click)="guardarConfiguracion()">Guardar Cambios</button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+
   </div>
+
 </div>

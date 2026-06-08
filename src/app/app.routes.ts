@@ -5,6 +5,7 @@ import { Registro } from './registro/registro';
 import { PanelCliente } from './panel-cliente/panel-cliente';
 import { Calendario } from './calendario/calendario';
 import { Admin } from './admin/admin';
+import { Cancelar } from './cancelar/cancelar';
 
 // 👇 Importamos a nuestros dos vigilantes
 import { authGuard, adminGuard } from './auth.guard'; 
@@ -22,6 +23,8 @@ export const routes: Routes = [
   
   // 👑 RUTA ULTRA PROTEGIDA PARA ADMINISTRADORA
   { path: 'admin', component: Admin, canActivate: [adminGuard] },
+  // ... en el arreglo de routes:
+  { path: 'cancelar', component: Cancelar },
   
   // RUTA SALVAVIDAS (Si escriben algo raro, los manda al inicio)
   { path: '**', redirectTo: 'inicio' }
