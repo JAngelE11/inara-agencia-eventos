@@ -23,18 +23,46 @@ export class Registro {
   apellidos: string = '';
   celular: string = '';
   correo: string = '';
-  contrasena: string = '';
+  password: string = '';
+  repetirPassword: string = '';
+  mostrarPassword = false;
+  mostrarRepetirPassword = false;
+
+  // Getters para validación de contraseña en tiempo real
+  get tieneMinimoOchoCharacters(): boolean { return this.password.length >= 8; }
+  get tieneMayuscula(): boolean { return /[A-ZÁÉÍÓÚÑ]/.test(this.password); }
+  get tieneNumero(): boolean { return /[0-9]/.test(this.password); }
+  get passwordValida(): boolean { return this.tieneMinimoOchoCharacters && this.tieneMayuscula && this.tieneNumero; }
+  get contrasenasCoinciden(): boolean { return this.password === this.repetirPassword && this.password !== ''; }
+
+  filtrarSoloLetras(campo: 'nombre' | 'apellidos') {
+    this[campo] = this[campo].replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '');
+  }
+
+  filtrarSoloNumeros(campo: 'celular') {
+    this[campo] = this[campo].replace(/[^0-9]/g, '');
+  }
 
   async registrar() {
-    if (!this.nombre || !this.apellidos || !this.celular || !this.correo || !this.contrasena) {
+    if (!this.nombre || !this.apellidos || !this.celular || !this.correo || !this.password || !this.repetirPassword) {
       Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Por favor, llena todos los campos para crear tu cuenta.', confirmButtonColor: '#198754' });
+      return;
+    }
+
+    if (!this.passwordValida) {
+      Swal.fire({ icon: 'error', title: 'Contraseña débil', text: 'La contraseña debe tener al menos 8 caracteres, incluir una mayúscula y un número.', confirmButtonColor: '#d33' });
+      return;
+    }
+
+    if (!this.contrasenasCoinciden) {
+      Swal.fire({ icon: 'error', title: 'Las contraseñas no coinciden', text: 'Asegúrate de escribir la misma contraseña en ambos campos.', confirmButtonColor: '#d33' });
       return;
     }
 
     Swal.fire({ title: 'Creando cuenta...', text: 'Preparando tu espacio en Inara.', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(this.auth, this.correo, this.contrasena);
+      const userCredential = await createUserWithEmailAndPassword(this.auth, this.correo, this.password);
       const user = userCredential.user;
 
       await setDoc(doc(this.firestore, 'usuarios', user.uid), {
@@ -46,7 +74,13 @@ export class Registro {
         fechaRegistro: new Date().toISOString()
       });
 
-      Swal.fire({ icon: 'success', title: '¡Bienvenido a Inara!', text: 'Tu cuenta ha sido creada con éxito. Vamos a planificar tu evento.', confirmButtonColor: '#198754', confirmButtonText: 'Ir a mi panel ✨' }).then(() => {
+      Swal.fire({ 
+        icon: 'success', 
+        title: '¡Registro Exitoso! 🎉', 
+        html: "Tu cuenta ha sido creada correctamente.<br><br><small class='text-muted'><b>Nota importante:</b> Cuando reserves una cita, te llegarán los detalles al correo y si no es Gmail, recuerda revisar tu bandeja de spam.</small>", 
+        confirmButtonColor: '#198754', 
+        confirmButtonText: 'Ir a mi panel ✨' 
+      }).then(() => {
         this.router.navigate(['/panel-cliente']);
       });
 

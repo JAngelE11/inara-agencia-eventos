@@ -52,8 +52,14 @@ export class Login implements OnInit {
     try {
       const userCredential = await signInWithEmailAndPassword(this.auth, this.correo, this.contrasena);
       this.redireccionarSegunRol(userCredential.user.uid);
-    } catch (error) {
-      Swal.fire({ icon: 'error', title: 'Oops...', text: 'Correo o contraseña incorrectos.', confirmButtonColor: '#d33' });
+    } catch (error: any) {
+      if (error.code === 'auth/invalid-email' || error.code === 'auth/user-not-found') {
+        Swal.fire({ icon: 'error', title: 'Oops...', text: 'El correo electrónico ingresado no está registrado o el formato es incorrecto.', confirmButtonColor: '#d33' });
+      } else if (error.code === 'auth/wrong-password') {
+        Swal.fire({ icon: 'error', title: 'Oops...', text: 'La contraseña ingresada es incorrecta. Verifica tus datos de acceso.', confirmButtonColor: '#d33' });
+      } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un problema de conexión. Inténtalo de nuevo más tarde.', confirmButtonColor: '#d33' });
+      }
     }
   }
 

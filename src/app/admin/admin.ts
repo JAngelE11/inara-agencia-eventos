@@ -4,7 +4,6 @@ import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Firestore, collection, getDocs, doc, deleteDoc, addDoc, updateDoc, getDoc, setDoc, query, where } from '@angular/fire/firestore';
 import { Auth, signOut } from '@angular/fire/auth';
-import emailjs from '@emailjs/browser';
 import Swal from 'sweetalert2';
 import { Chart, registerables } from 'chart.js';
 
@@ -113,6 +112,18 @@ export class Admin implements OnInit {
   }
 
   async guardarConfiguracion() {
+    // Validar formato DD/MM/AAAA antes de guardar
+    if (this.configuracion.diasFeriados) {
+      const feriados = this.configuracion.diasFeriados.split(',').map((f: string) => f.trim());
+      const formatoValido = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+      for (const fecha of feriados) {
+        if (fecha !== '' && !formatoValido.test(fecha)) {
+          Swal.fire({ icon: 'error', title: 'Formato Incorrecto', text: `La fecha "${fecha}" no tiene el formato DD/MM/AAAA. Revisa y vuelve a intentar.`, confirmButtonColor: '#198754' });
+          return;
+        }
+      }
+    }
+
     try {
       Swal.showLoading();
       const configRef = doc(this.firestore, 'configuracion', 'general');
@@ -163,16 +174,6 @@ export class Admin implements OnInit {
       const docRef = doc(this.firestore, 'reservas', reserva.id);
       await updateDoc(docRef, { estado: nuevoEstado });
       
-      if ((nuevoEstado === 'Confirmada' || nuevoEstado === 'Cancelada') && reserva.correo) {
-        const parametrosEmail = {
-          nombre_cliente: reserva.nombre,
-          correo_cliente: reserva.correo,
-          estado_cita: nuevoEstado,
-          codigo_reserva: reserva.codigoReserva,
-          fecha: reserva.fechaAsignada,
-          hora: reserva.horaAsignada
-        };
-      }
       Swal.fire('Estado Actualizado', `La cita de ${reserva.nombre} ahora está ${nuevoEstado}.`, 'success');
       this.cargarDatos(); 
     } catch (error) {
@@ -239,6 +240,21 @@ export class Admin implements OnInit {
     this.cdr.detectChanges();
   }
 
+  esDiaFeriadoODomingo(fechaISO: string): boolean {
+    if (!fechaISO) return false;
+    const partes = fechaISO.split('-');
+    const anio = partes[0];
+    const mes = partes[1];
+    const dia = partes[2];
+    const formatoNumerico = `${dia}/${mes}/${anio}`;
+
+    const d = new Date(Number(anio), Number(mes) - 1, Number(dia));
+    if (d.getDay() === 0) return true;
+
+    const feriados = this.configuracion?.diasFeriados ? this.configuracion.diasFeriados.split(',').map((f: string) => f.trim()) : [];
+    return feriados.includes(formatoNumerico);
+  }
+
   async crearCitaAdmin() {
     const { value: formValues } = await Swal.fire({
       title: '<h3 class="fw-bold" style="color: #198754; margin-bottom: 0;">Nueva Reserva Manual</h3>',
@@ -250,10 +266,11 @@ export class Admin implements OnInit {
           .time-option { display: none; }
           .time-label { display: block; padding: 10px; text-align: center; border: 1px solid #6c757d; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
           .time-option:checked + .time-label { background-color: #198754; color: white; border-color: #198754; }
+          .time-option:disabled + .time-label { background-color: #f8f9fa; color: #dc3545; border-color: #ddd; cursor: not-allowed; text-decoration: line-through; opacity: 0.6; }
         </style>
         <div class="text-start px-2">
-          <input id="swal-nombre" class="inara-input m-0 mt-2" placeholder="Nombres del Cliente">
-          <input id="swal-celular" class="inara-input mt-2" placeholder="Celular (9 dígitos)">
+          <input id="swal-nombre" class="inara-input m-0 mt-2" placeholder="Nombres del Cliente" oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '')">
+          <input id="swal-celular" class="inara-input mt-2" placeholder="Celular (9 dígitos)" maxlength="9" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
           <input id="swal-fecha" type="date" class="inara-input" min="${new Date().toISOString().split('T')[0]}">
           
           <h6 class="fw-bold mb-2 small text-secondary">Selecciona Horario (10 AM a 6 PM)</h6>
@@ -290,7 +307,44 @@ export class Admin implements OnInit {
       showCancelButton: true,
       confirmButtonText: 'Guardar',
       confirmButtonColor: '#198754',
-      preConfirm: async () => {
+      didOpen: () => {
+        const fechaInput = document.getElementById('swal-fecha') as HTMLInputElement;
+        fechaInput.addEventListener('change', async () => {
+          const fechaVal = fechaInput.value;
+          if (!fechaVal) return;
+          
+          // Deshabilitamos todo temporalmente mientras carga
+          const timeOptions = document.querySelectorAll('.time-option');
+          timeOptions.forEach(opt => { 
+            (opt as HTMLInputElement).disabled = true; 
+            (opt as HTMLInputElement).checked = false; 
+          });
+          
+          if (this.esDiaFeriadoODomingo(fechaVal)) {
+            Swal.showValidationMessage('Este día es feriado o domingo y la agencia está cerrada.');
+            return;
+          } else {
+            Swal.resetValidationMessage();
+          }
+
+          const fechaFormateada = this.formatearFecha(fechaVal);
+          
+          try {
+            const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada)));
+            const horasOcupadas = checkSnapshot.docs
+              .filter(doc => doc.data()['estado'] !== 'Cancelada')
+              .map(doc => doc.data()['horaAsignada']);
+              
+            timeOptions.forEach(opt => {
+              const input = opt as HTMLInputElement;
+              input.disabled = horasOcupadas.includes(input.value);
+            });
+          } catch (error) {
+            console.error('Error verificando disponibilidad:', error);
+          }
+        });
+      },
+      preConfirm: () => {
         const nombre = (document.getElementById('swal-nombre') as HTMLInputElement).value;
         const celular = (document.getElementById('swal-celular') as HTMLInputElement).value;
         const fecha = (document.getElementById('swal-fecha') as HTMLInputElement).value;
@@ -301,9 +355,9 @@ export class Admin implements OnInit {
         const hora = horaSeleccionada ? horaSeleccionada.value : null;
 
         if (!nombre || !fecha || !hora) { Swal.showValidationMessage('Nombre, fecha y hora son obligatorios.'); return; }
-
-        const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', this.formatearFecha(fecha)), where('horaAsignada', '==', hora)));
-        if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }
+        if (nombre.trim().length < 2) { Swal.showValidationMessage('El nombre debe tener al menos 2 caracteres.'); return; }
+        if (!/^9[0-9]{8}$/.test(celular)) { Swal.showValidationMessage('El celular debe ser válido (9 dígitos y empezar con 9).'); return; }
+        if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return; }
 
         return {
           nombre, apellidos: '', celular, correo: '',
@@ -353,6 +407,7 @@ export class Admin implements OnInit {
         const fecha = (document.getElementById('repro-fecha') as HTMLInputElement).value;
         const hora = (document.getElementById('repro-hora') as HTMLInputElement).value;
         if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir fecha y hora'); return; }
+        if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return; }
         const fechaFormateada = this.formatearFecha(fecha);
         const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora)));
         if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }

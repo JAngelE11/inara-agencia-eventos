@@ -7,17 +7,17 @@
       <div class="row mb-3 text-start">
         <div class="col-6">
           <label class="form-label fw-bold text-secondary small">Nombre</label>
-          <input type="text" class="form-control" placeholder="Ej. Carlos" [(ngModel)]="nombre" name="nombre">
+          <input type="text" class="form-control" placeholder="Ej. Carlos" [(ngModel)]="nombre" name="nombre" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+" oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')">
         </div>
         <div class="col-6">
           <label class="form-label fw-bold text-secondary small">Apellidos</label>
-          <input type="text" class="form-control" placeholder="Ej. Pérez" [(ngModel)]="apellidos" name="apellidos">
+          <input type="text" class="form-control" placeholder="Ej. Pérez" [(ngModel)]="apellidos" name="apellidos" pattern="[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+" oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')">
         </div>
       </div>
 
       <div class="mb-3 text-start">
         <label class="form-label fw-bold text-secondary small">Número de Celular</label>
-        <input type="text" class="form-control" placeholder="Ej. 999888777" [(ngModel)]="celular" name="celular">
+        <input type="tel" class="form-control" placeholder="Ej. 999888777" [(ngModel)]="celular" name="celular" pattern="[0-9]{9}" maxlength="9" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
       </div>
       
       <div class="mb-3 text-start">
@@ -25,15 +25,43 @@
         <input type="email" class="form-control" placeholder="correo@ejemplo.com" [(ngModel)]="correo" name="correo">
       </div>
       
-      <div class="mb-4 text-start">
+      <div class="mb-2 text-start">
         <label class="form-label fw-bold text-secondary small">Contraseña</label>
-        <input type="password" class="form-control" placeholder="********" [(ngModel)]="contrasena" name="contrasena" (keydown.enter)="registrar()">
+        <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+          <input [type]="mostrarPassword ? 'text' : 'password'" class="form-control border-end-0" placeholder="********" [(ngModel)]="password" name="password">
+          <button class="btn btn-outline-secondary border-start-0 bg-white" type="button" (click)="mostrarPassword = !mostrarPassword">
+            {{ mostrarPassword ? '🙈' : '👁️' }}
+          </button>
+        </div>
+      </div>
+
+      <ul class="list-unstyled small mb-3 text-start ms-1" style="font-size: 0.85rem;">
+        <li [style.color]="tieneMinimoOchoCharacters ? '#198754' : '#dc3545'" class="mb-1">
+          {{ tieneMinimoOchoCharacters ? '✅' : '❌' }} Mínimo 8 caracteres
+        </li>
+        <li [style.color]="tieneMayuscula ? '#198754' : '#dc3545'" class="mb-1">
+          {{ tieneMayuscula ? '✅' : '❌' }} Al menos una letra mayúscula
+        </li>
+        <li [style.color]="tieneNumero ? '#198754' : '#dc3545'">
+          {{ tieneNumero ? '✅' : '❌' }} Al menos un número
+        </li>
+      </ul>
+
+      <div class="mb-4 text-start">
+        <label class="form-label fw-bold text-secondary small">Repetir Contraseña</label>
+        <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+          <input [type]="mostrarRepetirPassword ? 'text' : 'password'" class="form-control border-end-0" placeholder="********" [(ngModel)]="repetirPassword" name="repetirPassword" (keydown.enter)="registrar()">
+          <button class="btn btn-outline-secondary border-start-0 bg-white" type="button" (click)="mostrarRepetirPassword = !mostrarRepetirPassword">
+            {{ mostrarRepetirPassword ? '🙈' : '👁️' }}
+          </button>
+        </div>
       </div>
 
       <button type="button" 
               class="btn w-100 fw-bold text-white mb-3 shadow-sm" 
               style="background-color: #198754; padding: 12px; border-radius: 8px;" 
-              (click)="registrar()">
+              (click)="registrar()"
+              [disabled]="!passwordValida || !contrasenasCoinciden">
         Registrarme
       </button>
     </form>
@@ -49,12 +77,6 @@
       Google
     </button>
 
-    <button type="button" class="btn text-white w-100 mb-4 fw-bold d-flex align-items-center justify-content-center shadow-sm" style="background-color: #1877F2; border-color: #1877F2; padding: 10px; border-radius: 8px;" (click)="iniciarSesionFacebook()">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="me-2" viewBox="0 0 16 16">
-        <path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951"/>
-      </svg>
-      Facebook
-    </button>
     <div class="mt-2 mb-3">
       <small class="text-muted">¿Ya tienes cuenta?</small>
       <a routerLink="/login" class="fw-bold ms-1" style="color: #198754; text-decoration: none; cursor: pointer;">

@@ -73,6 +73,7 @@ export class PanelCliente implements OnInit {
       const querySnapshot = await getDocs(q);
       
       this.misReservas = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      this.cdr.detectChanges();
     } catch (error) {
       console.error("Error obteniendo reservas:", error);
     } finally {
@@ -140,35 +141,106 @@ export class PanelCliente implements OnInit {
       Swal.fire({
         icon: 'info',
         title: 'Política de Empresa',
-        text: 'Faltan menos de 24 horas para tu evento. Por motivos de logística, las reprogramaciones de último minuto deben coordinarse directamente por teléfono con nuestro equipo.',
+        html: 'Faltan menos de 24 horas para tu evento. Por motivos de logística, las reprogramaciones de último minuto deben coordinarse directamente por teléfono con nuestro equipo.<br><br>Comunicarse al WhatsApp/Cel: <b>902701111</b>',
         confirmButtonColor: '#0d6efd',
         confirmButtonText: 'Entendido'
       });
       return;
     }
 
-    Swal.fire({
-      title: '¿Reprogramar cita?',
-      text: `Se cancelará tu reserva actual del ${cita.fechaAsignada}. Podrás agendar una nueva fecha inmediatamente desde tu panel.`,
+    const result = await Swal.fire({
+      title: 'Gestionar Cita',
+      text: `¿Qué deseas hacer con tu reserva del ${cita.fechaAsignada}?`,
       icon: 'question',
       showCancelButton: true,
+      showDenyButton: true,
       confirmButtonColor: '#198754',
+      denyButtonColor: '#dc3545',
       cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, continuar',
-      cancelButtonText: 'No, mantener mi cita'
-    }).then(async (result) => {
-      if (result.isConfirmed) {
+      confirmButtonText: '📅 Reprogramar',
+      denyButtonText: '🔴 Cancelar Cita',
+      cancelButtonText: 'Regresar'
+    });
+
+    if (result.isDenied) {
+      const confirmCancel = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: 'Al cancelar, perderás tu horario y otra persona podría tomarlo.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, cancelar cita',
+        cancelButtonText: 'Volver'
+      });
+
+      if (confirmCancel.isConfirmed) {
         Swal.fire({ title: 'Cancelando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         try {
           await deleteDoc(doc(this.firestore, 'reservas', cita.id));
-          Swal.fire({ icon: 'success', title: '¡Listo!', text: 'El horario ha sido liberado.', confirmButtonColor: '#198754' });
-          this.cargarReservas();
+          await this.cargarReservas();
+          this.cdr.detectChanges();
+          Swal.fire({ icon: 'success', title: 'Cancelada', text: 'Tu cita ha sido cancelada.', confirmButtonColor: '#198754' });
         } catch (error) {
           console.error("Error al cancelar cita:", error);
           Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cancelar la cita.', confirmButtonColor: '#198754' });
         }
       }
-    });
+    } else if (result.isConfirmed) {
+      const { value: formValues } = await Swal.fire({
+        title: 'Reprogramar Cita',
+        html: `
+          <div class="text-start px-3">
+            <input id="repro-fecha" type="date" class="swal2-input w-100 m-0 mb-3" min="${new Date().toISOString().split('T')[0]}">
+            <select id="repro-hora" class="swal2-select w-100 m-0">
+              <option value="10:00">10:00 AM</option>
+              <option value="11:00">11:00 AM</option>
+              <option value="12:00">12:00 MD</option>
+              <option value="13:00">13:00 PM</option>
+              <option value="14:00">14:00 PM</option>
+              <option value="15:00">15:00 PM</option>
+              <option value="16:00">16:00 PM</option>
+              <option value="17:00">17:00 PM</option>
+              <option value="18:00">18:00 PM</option>
+            </select>
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Actualizar',
+        confirmButtonColor: '#198754',
+        preConfirm: async () => {
+          const fecha = (document.getElementById('repro-fecha') as HTMLInputElement).value;
+          const hora = (document.getElementById('repro-hora') as HTMLInputElement).value;
+          if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir fecha y hora'); return; }
+          
+          const nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+          const partes = fecha.split('-');
+          const d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+          const fechaFormateada = `${d.getDate()} de ${nombresMeses[d.getMonth()]} de ${d.getFullYear()}`;
+          
+          const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora)));
+          if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }
+          
+          return { fechaAsignada: fechaFormateada, horaAsignada: hora };
+        }
+      });
+
+      if (formValues) {
+        Swal.fire({ title: 'Reprogramando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        try {
+          await updateDoc(doc(this.firestore, 'reservas', cita.id), { 
+            fechaAsignada: formValues.fechaAsignada, 
+            horaAsignada: formValues.horaAsignada,
+            estado: 'Pendiente de Confirmacion'
+          });
+          await this.cargarReservas();
+          Swal.fire('¡Reprogramado!', 'El horario ha sido actualizado y está pendiente de confirmación.', 'success');
+        } catch (error) {
+          console.error("Error al reprogramar:", error);
+          Swal.fire('Error', 'No se pudo reprogramar la cita.', 'error');
+        }
+      }
+    }
   }
 
   async cerrarSesion() {

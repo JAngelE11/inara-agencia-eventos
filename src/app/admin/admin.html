@@ -472,11 +472,11 @@
 
         <div class="col-12 mb-3">
 
-          <label class="form-label fw-bold small text-secondary">Días Feriados o Vacaciones (Fechas exactas separadas por coma)</label>
+          <label class="form-label fw-bold small text-secondary">Días Feriados o Vacaciones (Formato DD/MM/AAAA separados por coma)</label>
 
-          <textarea class="form-control" rows="3" [(ngModel)]="configuracion.diasFeriados" placeholder="Ej: 28 de julio de 2026, 25 de diciembre de 2026"></textarea>
+          <textarea class="form-control" rows="3" [(ngModel)]="configuracion.diasFeriados" placeholder="Ej: 25/12/2026, 01/05/2026"></textarea>
 
-          <div class="form-text small">Estas fechas se bloquearán automáticamente en el calendario de los clientes.</div>
+          <div class="form-text small">Estas fechas se bloquearán automáticamente en el calendario de los clientes y en las reservas manuales.</div>
 
         </div>
 

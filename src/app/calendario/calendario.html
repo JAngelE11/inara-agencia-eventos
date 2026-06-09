@@ -15,30 +15,40 @@
       <button class="btn btn-light rounded-circle fw-bold shadow-sm" (click)="cambiarMes(1)">&gt;</button>
     </div>
 
-    <div class="d-flex justify-content-between mb-2 text-muted fw-bold" style="font-size: 0.9rem;">
-      <div style="width: 14%;">Do</div><div style="width: 14%;">Lu</div><div style="width: 14%;">Ma</div>
-      <div style="width: 14%;">Mi</div><div style="width: 14%;">Ju</div><div style="width: 14%;">Vi</div><div style="width: 14%;">Sa</div>
+    <!-- Spinner de carga -->
+    <div *ngIf="cargandoCalendario" class="text-center my-4">
+      <div class="spinner-border text-success" role="status"></div>
+      <p class="text-muted small mt-2">Sincronizando agenda...</p>
     </div>
-    
-    <div class="d-flex flex-wrap justify-content-start mb-4" style="gap: 2%; row-gap: 10px;">
+
+    <!-- Contenedor del calendario (oculto mientras carga) -->
+    <div *ngIf="!cargandoCalendario">
+      <div class="d-flex justify-content-between mb-2 text-muted fw-bold" style="font-size: 0.9rem;">
+        <div style="width: 14%;">Do</div><div style="width: 14%;">Lu</div><div style="width: 14%;">Ma</div>
+        <div style="width: 14%;">Mi</div><div style="width: 14%;">Ju</div><div style="width: 14%;">Vi</div><div style="width: 14%;">Sa</div>
+      </div>
       
-      <div *ngFor="let vacio of diasVacios" style="width: 12.5%;"></div>
-      
-      <button *ngFor="let dia of dias" 
-              class="btn rounded-circle p-0 fw-bold" 
-              [ngClass]="{
-                'text-white shadow': dia === diaSeleccionado,
-                'btn-outline-dark text-secondary': dia !== diaSeleccionado && !esDiaInvalido(dia),
-                'text-muted': esDiaInvalido(dia)
-              }"
-              [style.background-color]="dia === diaSeleccionado ? '#198754' : 'transparent'"
-              [style.border-color]="dia === diaSeleccionado ? '#198754' : (esDiaInvalido(dia) ? 'transparent' : '#ddd')"
-              [style.opacity]="esDiaInvalido(dia) ? '0.4' : '1'"
-              [style.cursor]="esDiaInvalido(dia) ? 'not-allowed' : 'pointer'"
-              (click)="seleccionarDia(dia)"
-              style="width: 12.5%; aspect-ratio: 1; font-size: 0.95rem;">
-        {{ dia }}
-      </button>
+      <div class="d-flex flex-wrap justify-content-start mb-4" style="gap: 2%; row-gap: 10px;">
+        
+        <div *ngFor="let vacio of diasVacios" style="width: 12.5%;"></div>
+        
+        <button *ngFor="let dia of dias" 
+                class="btn rounded-circle p-0 fw-bold" 
+                [disabled]="esDiaInvalido(dia)"
+                [ngClass]="{
+                  'text-white shadow': dia === diaSeleccionado,
+                  'btn-outline-dark text-secondary': dia !== diaSeleccionado && !esDiaInvalido(dia),
+                  'bg-light text-muted text-decoration-line-through': esDiaInvalido(dia)
+                }"
+                [style.background-color]="dia === diaSeleccionado ? '#198754' : (esDiaInvalido(dia) ? '#f8f9fa' : 'transparent')"
+                [style.border-color]="dia === diaSeleccionado ? '#198754' : (esDiaInvalido(dia) ? 'transparent' : '#ddd')"
+                [style.opacity]="esDiaInvalido(dia) ? '0.4' : '1'"
+                [style.cursor]="esDiaInvalido(dia) ? 'not-allowed' : 'pointer'"
+                (click)="seleccionarDia(dia)"
+                style="width: 12.5%; aspect-ratio: 1; font-size: 0.95rem;">
+          {{ dia }}
+        </button>
+      </div>
     </div>
 
     <h5 class="fw-bold mb-3 mt-2">¿A qué hora? 🕒</h5>
@@ -58,7 +68,13 @@
     <div *ngIf="diaSeleccionado && !cargandoHoras" class="d-flex justify-content-center flex-wrap gap-2 mb-4">
       <button *ngFor="let hora of horasDisponibles"
               class="btn rounded-pill px-4"
-              [ngClass]="hora === horaSeleccionada ? 'btn-secondary text-white shadow' : 'btn-outline-secondary'"
+              [disabled]="horasOcupadas.includes(hora)"
+              [ngClass]="{
+                'bg-light text-danger text-decoration-line-through border-light opacity-75': horasOcupadas.includes(hora),
+                'btn-secondary text-white shadow': hora === horaSeleccionada && !horasOcupadas.includes(hora),
+                'btn-outline-secondary': hora !== horaSeleccionada && !horasOcupadas.includes(hora)
+              }"
+              [style.cursor]="horasOcupadas.includes(hora) ? 'not-allowed' : 'pointer'"
               (click)="seleccionarHora(hora)">
         {{ hora }}
       </button>

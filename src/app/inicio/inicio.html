@@ -1,12 +1,12 @@
-<!-- NAVBAR TRANSPARENTE -->
-<nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: transparent; transition: 0.3s;">
+<!-- NAVBAR ESTILIZADO -->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" style="background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); transition: 0.3s;">
   <div class="container">
     <a class="navbar-brand fw-bold" href="#" style="letter-spacing: 2px; color: #D4AF37;">INARA</a>
     <div class="navbar-nav ms-auto">
       
       <!-- BOTÓN NAVBAR INTELIGENTE -->
       <!-- Si NO ha iniciado sesión -->
-      <a *ngIf="!usuarioLogueado" routerLink="/login" class="btn btn-outline-light" style="border-color: #D4AF37; color: #D4AF37;">Agenda tu cita</a>
+      <a *ngIf="!usuarioLogueado" routerLink="/login" class="btn text-white fw-bold shadow-sm px-4" style="background-color: #D4AF37; border: none;">Agenda tu cita</a>
       
       <!-- Si SÍ ha iniciado sesión y es Cliente -->
       <a *ngIf="usuarioLogueado && !esAdmin" routerLink="/panel-cliente" class="btn text-white fw-bold shadow-sm" style="background-color: #198754; border: none;">Ir a mi Panel ✨</a>

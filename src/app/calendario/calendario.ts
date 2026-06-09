@@ -37,12 +37,13 @@ export class Calendario implements OnInit {
   diaSeleccionado: number | null = null;
 
   horasDisponibles: string[] = [];
+  horasOcupadas: string[] = [];
   horaSeleccionada: string = '';
   cargandoHoras: boolean = false;
+  cargandoCalendario: boolean = true;
 
   async ngOnInit() {
-    await this.cargarConfiguracion(); 
-    this.generarCalendario();
+    await this.cargarConfiguracion();
 
     onAuthStateChanged(this.auth, async (user) => {
       if (user) {
@@ -65,16 +66,22 @@ export class Calendario implements OnInit {
   }
 
   async cargarConfiguracion() {
+    this.cargandoCalendario = true;
     try {
       const configRef = doc(this.firestore, 'configuracion', 'general');
       const docSnap = await getDoc(configRef);
       if (docSnap.exists()) {
         this.configuracionAgencia = docSnap.data();
         if (this.configuracionAgencia.diasFeriados) {
-          this.feriadosArray = this.configuracionAgencia.diasFeriados.split(',').map((f: string) => f.trim().toLowerCase());
+          this.feriadosArray = this.configuracionAgencia.diasFeriados.split(',').map((f: string) => f.trim());
         }
       }
     } catch (e) { console.error("Error obteniendo configuración", e); }
+      finally {
+        this.generarCalendario();
+        this.cargandoCalendario = false;
+        this.cdr.detectChanges();
+      }
   }
 
   generarCalendario() {
@@ -111,8 +118,11 @@ export class Calendario implements OnInit {
     if (fecha < hoy) return true; 
     if (fecha.getDay() === 0) return true; 
 
-    const fechaFormateada = `${dia} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
-    if (this.feriadosArray.includes(fechaFormateada.toLowerCase())) {
+    const diaStr = dia.toString().padStart(2, '0');
+    const mesStr = (this.mesActual + 1).toString().padStart(2, '0');
+    const formatoNumerico = `${diaStr}/${mesStr}/${this.anioActual}`;
+
+    if (this.feriadosArray.includes(formatoNumerico)) {
       return true;
     }
 
@@ -129,6 +139,7 @@ export class Calendario implements OnInit {
   async cargarHorasDisponibles() {
     this.cargandoHoras = true;
     this.horasDisponibles = [];
+    this.horasOcupadas = [];
     this.cdr.detectChanges();
 
     const fechaSeleccionada = new Date(this.anioActual, this.mesActual, this.diaSeleccionado!);
@@ -156,9 +167,11 @@ export class Calendario implements OnInit {
       const q = query(reservasRef, where('fechaAsignada', '==', fechaCompleta));
       const querySnapshot = await getDocs(q);
 
-      const horasOcupadas = querySnapshot.docs
+      this.horasOcupadas = querySnapshot.docs
         .filter(doc => doc.data()['estado'] !== 'Cancelada') 
         .map(doc => doc.data()['horaAsignada']);
+        
+      this.cdr.detectChanges(); // Forzamos la vista a reaccionar en cuanto llegan las horas ocupadas
 
       const esHoy = (this.diaSeleccionado === hoy.getDate() && this.mesActual === hoy.getMonth() && this.anioActual === hoy.getFullYear());
       const horaActual = hoy.getHours();
@@ -167,7 +180,7 @@ export class Calendario implements OnInit {
         const horaNum = parseInt(horaStr.split(':')[0]);
         if (esHoy && horaNum < (horaActual + 2)) return false;
 
-        const seCruza = horasOcupadas.some(ocupadaStr => {
+        const seCruza = this.horasOcupadas.some(ocupadaStr => {
           const ocupadaNum = parseInt(ocupadaStr.split(':')[0]);
           return Math.abs(horaNum - ocupadaNum) < 2;
         });
@@ -194,6 +207,36 @@ export class Calendario implements OnInit {
     }
 
     const fechaCompleta = `${this.diaSeleccionado} de ${this.nombreMesActual.toLowerCase()} de ${this.anioActual}`;
+
+    try {
+      if (this.usuarioDatos.correo) {
+        const reservasRef = collection(this.firestore, 'reservas');
+        const qConcurrencia = query(reservasRef, where('correo', '==', this.usuarioDatos.correo), where('fechaAsignada', '==', fechaCompleta));
+        const prevReservas = await getDocs(qConcurrencia);
+        
+        const tieneCitas = prevReservas.docs.some(d => d.data()['estado'] !== 'Cancelada');
+        
+        if (tieneCitas) {
+          const respuesta = await Swal.fire({
+            icon: 'question',
+            title: 'Ya tienes una cita hoy',
+            text: '¿La nueva cita corresponde al mismo evento o a uno diferente?',
+            showCancelButton: true,
+            confirmButtonText: 'Mismo evento',
+            cancelButtonText: 'Otro evento',
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d'
+          });
+          
+          if (respuesta.isConfirmed) {
+            Swal.fire({ icon: 'info', title: '¡Todo bajo control! ✨', text: '¡No te preocupes! Tenemos tiempo de sobra para charlar tranquilas en tu primera cita. No es necesario duplicar el horario.', confirmButtonColor: '#198754' });
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al validar concurrencia:', error);
+    }
 
     Swal.fire({ title: 'Procesando reserva...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
