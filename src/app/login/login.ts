@@ -2,8 +2,7 @@ import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-// ✅ Agregamos FacebookAuthProvider a las importaciones
-import { Auth, signInWithEmailAndPassword, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, sendPasswordResetEmail, onAuthStateChanged } from '@angular/fire/auth';
+import { Auth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, onAuthStateChanged } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 
@@ -90,43 +89,6 @@ export class Login implements OnInit {
     } catch (error) {
       console.error(error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar sesión con Google.', confirmButtonColor: '#d33' });
-    }
-  }
-
-  // 🔥 NUEVA FUNCIÓN: LOGIN CON FACEBOOK (Requerimiento 8)
-  async iniciarSesionFacebook() {
-    const provider = new FacebookAuthProvider();
-    try {
-      const result = await signInWithPopup(this.auth, provider);
-      const user = result.user;
-
-      Swal.fire({ title: 'Verificando datos de Facebook...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-      const docRef = doc(this.firestore, 'usuarios', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      // Requerimiento 9: Guarda automáticamente nombre, correo y lo manda a BD
-      if (!docSnap.exists()) {
-        await setDoc(docRef, {
-          nombre: user.displayName || 'Usuario Facebook',
-          apellidos: '',
-          celular: '',
-          correo: user.email || '', 
-          rol: 'cliente',
-          fechaRegistro: new Date().toISOString()
-        });
-      }
-
-      this.redireccionarSegunRol(user.uid);
-
-    } catch (error: any) {
-      console.error(error);
-      // Firebase protege si el correo de FB ya se usó para Google
-      if(error.code === 'auth/account-exists-with-different-credential') {
-        Swal.fire({ icon: 'error', title: 'Correo ya registrado', text: 'Este correo ya está asociado a otra cuenta (probablemente Google). Usa ese método para entrar.', confirmButtonColor: '#d33' });
-      } else {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo conectar con Facebook.', confirmButtonColor: '#d33' });
-      }
     }
   }
 

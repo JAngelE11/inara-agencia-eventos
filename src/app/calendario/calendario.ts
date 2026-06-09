@@ -2,7 +2,7 @@ import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Firestore, collection, query, where, getDocs, doc, getDoc, runTransaction } from '@angular/fire/firestore';
+import { Firestore, collection, query, where, getDocs, doc, getDoc, runTransaction, setDoc } from '@angular/fire/firestore';
 import { Auth, onAuthStateChanged } from '@angular/fire/auth';
 import emailjs from '@emailjs/browser';
 import Swal from 'sweetalert2'; 
@@ -48,14 +48,16 @@ export class Calendario implements OnInit {
     onAuthStateChanged(this.auth, async (user) => {
       if (user) {
         this.usuarioDatos.correo = user.email;
+        this.usuarioDatos.uid = user.uid;
         try {
           const docRef = doc(this.firestore, 'usuarios', user.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             this.usuarioDatos.nombre = docSnap.data()['nombre'];
             this.usuarioDatos.apellidos = docSnap.data()['apellidos'];
-            this.usuarioDatos.celular = docSnap.data()['celular'];
+            this.usuarioDatos.celular = docSnap.data()['celular'] || '';
           }
+          this.cdr.detectChanges();
         } catch (error) {
           console.error("Error obteniendo perfil:", error);
         }
@@ -73,7 +75,7 @@ export class Calendario implements OnInit {
       if (docSnap.exists()) {
         this.configuracionAgencia = docSnap.data();
         if (this.configuracionAgencia.diasFeriados) {
-          this.feriadosArray = this.configuracionAgencia.diasFeriados.split(',').map((f: string) => f.trim());
+          this.feriadosArray = String(this.configuracionAgencia.diasFeriados).split(',').map((f: string) => f.trim());
         }
       }
     } catch (e) { console.error("Error obteniendo configuración", e); }
@@ -269,6 +271,10 @@ export class Calendario implements OnInit {
           fechaRegistro: new Date().toISOString()
         });
       });
+
+      if (this.usuarioDatos.uid) {
+        await setDoc(doc(this.firestore, 'usuarios', this.usuarioDatos.uid), { celular: this.usuarioDatos.celular }, { merge: true });
+      }
 
       const parametrosEmail = {
         nombre_cliente: `${this.usuarioDatos.nombre} ${this.usuarioDatos.apellidos}`,

@@ -2,8 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-// ✅ Importamos Google y Facebook aquí también
-import { Auth, createUserWithEmailAndPassword, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup } from '@angular/fire/auth';
+import { Auth, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from '@angular/fire/auth';
 import { Firestore, doc, setDoc, getDoc } from '@angular/fire/firestore';
 import Swal from 'sweetalert2'; 
 
@@ -77,7 +76,7 @@ export class Registro {
       Swal.fire({ 
         icon: 'success', 
         title: '¡Registro Exitoso! 🎉', 
-        html: "Tu cuenta ha sido creada correctamente.<br><br><small class='text-muted'><b>Nota importante:</b> Cuando reserves una cita, te llegarán los detalles al correo y si no es Gmail, recuerda revisar tu bandeja de spam.</small>", 
+        html: 'Tu cuenta ha sido creada correctamente.<br><br><small class="text-muted"><b>Nota importante:</b> Cuando reserves una cita, te llegarán los detalles de confirmación al correo. Si tu cuenta no es Gmail, recuerda minunciosamente revisar tu bandeja de correo no deseado o spam.</small>', 
         confirmButtonColor: '#198754', 
         confirmButtonText: 'Ir a mi panel ✨' 
       }).then(() => {
@@ -121,38 +120,4 @@ export class Registro {
     }
   }
 
-  // 🔥 REGISTRO CON FACEBOOK (Requerimiento 8)
-  async iniciarSesionFacebook() {
-    const provider = new FacebookAuthProvider();
-    try {
-      const result = await signInWithPopup(this.auth, provider);
-      const user = result.user;
-
-      Swal.fire({ title: 'Procesando cuenta de Facebook...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-      const docRef = doc(this.firestore, 'usuarios', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        await setDoc(docRef, {
-          nombre: user.displayName || 'Usuario Facebook',
-          apellidos: '',
-          celular: '',
-          correo: user.email || '', 
-          rol: 'cliente',
-          fechaRegistro: new Date().toISOString()
-        });
-      }
-
-      Swal.close();
-      this.router.navigate(['/panel-cliente']);
-
-    } catch (error: any) {
-      console.error(error);
-      if(error.code === 'auth/account-exists-with-different-credential') {
-        Swal.fire({ icon: 'error', title: 'Correo ya registrado', text: 'Este correo ya está asociado a otra cuenta. Inicia sesión normalmente.', confirmButtonColor: '#d33' });
-      } else {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo conectar con Facebook.', confirmButtonColor: '#d33' });
-      }
-    }
-  }
 }

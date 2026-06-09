@@ -113,8 +113,9 @@ export class Admin implements OnInit {
 
   async guardarConfiguracion() {
     // Validar formato DD/MM/AAAA antes de guardar
-    if (this.configuracion.diasFeriados) {
-      const feriados = this.configuracion.diasFeriados.split(',').map((f: string) => f.trim());
+    if (this.configuracion && this.configuracion.diasFeriados) {
+      const feriadosStr = String(this.configuracion.diasFeriados);
+      const feriados = feriadosStr.split(',').map((f: string) => f.trim());
       const formatoValido = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
       for (const fecha of feriados) {
         if (fecha !== '' && !formatoValido.test(fecha)) {
@@ -125,7 +126,7 @@ export class Admin implements OnInit {
     }
 
     try {
-      Swal.showLoading();
+      Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
       const configRef = doc(this.firestore, 'configuracion', 'general');
       await setDoc(configRef, this.configuracion);
       Swal.fire('¡Guardado!', 'La configuración de la agencia se actualizó.', 'success');
@@ -251,7 +252,7 @@ export class Admin implements OnInit {
     const d = new Date(Number(anio), Number(mes) - 1, Number(dia));
     if (d.getDay() === 0) return true;
 
-    const feriados = this.configuracion?.diasFeriados ? this.configuracion.diasFeriados.split(',').map((f: string) => f.trim()) : [];
+    const feriados = (this.configuracion && this.configuracion.diasFeriados) ? String(this.configuracion.diasFeriados).split(',').map((f: string) => f.trim()) : [];
     return feriados.includes(formatoNumerico);
   }
 
@@ -313,6 +314,9 @@ export class Admin implements OnInit {
           const fechaVal = fechaInput.value;
           if (!fechaVal) return;
           
+          const fechaObj = new Date(fechaVal + 'T00:00:00');
+          const diaSemana = fechaObj.getDay();
+
           // Deshabilitamos todo temporalmente mientras carga
           const timeOptions = document.querySelectorAll('.time-option');
           timeOptions.forEach(opt => { 
@@ -320,7 +324,7 @@ export class Admin implements OnInit {
             (opt as HTMLInputElement).checked = false; 
           });
           
-          if (this.esDiaFeriadoODomingo(fechaVal)) {
+          if (diaSemana === 0 || this.esDiaFeriadoODomingo(fechaVal)) {
             Swal.showValidationMessage('Este día es feriado o domingo y la agencia está cerrada.');
             return;
           } else {
@@ -337,7 +341,13 @@ export class Admin implements OnInit {
               
             timeOptions.forEach(opt => {
               const input = opt as HTMLInputElement;
-              input.disabled = horasOcupadas.includes(input.value);
+              const horaFiltro = parseInt(input.value.split(':')[0], 10);
+              
+              if (diaSemana === 6 && horaFiltro > 15) {
+                input.disabled = true;
+              } else {
+                input.disabled = horasOcupadas.includes(input.value);
+              }
             });
           } catch (error) {
             console.error('Error verificando disponibilidad:', error);
