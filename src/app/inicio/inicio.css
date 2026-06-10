@@ -15,3 +15,8 @@
   transform: translateY(-10px); /* La tarjeta sube un poco */
   box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; /* La sombra se hace más grande */
 }
+
+.navbar-brand:hover {
+  opacity: 0.8;
+  transition: 0.2s;
+}

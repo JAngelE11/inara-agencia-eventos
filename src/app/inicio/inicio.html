@@ -1,39 +1,51 @@
 <!-- NAVBAR ESTILIZADO -->
-<nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" style="background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); transition: 0.3s;">
+<nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm"
+  style="background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); transition: 0.3s;">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="#" style="letter-spacing: 2px; color: #D4AF37;">INARA</a>
+    <a class="navbar-brand fw-bold text-decoration-none" routerLink="/inicio"
+      style="letter-spacing: 2px; color: #D4AF37; cursor:pointer;">
+      INARA
+    </a>
     <div class="navbar-nav ms-auto">
-      
+
       <!-- BOTÓN NAVBAR INTELIGENTE -->
       <!-- Si NO ha iniciado sesión -->
-      <a *ngIf="!usuarioLogueado" routerLink="/login" class="btn text-white fw-bold shadow-sm px-4" style="background-color: #D4AF37; border: none;">Agenda tu cita</a>
-      
+      <a *ngIf="!usuarioLogueado" routerLink="/login" class="btn text-white fw-bold shadow-sm px-4"
+        style="background-color: #D4AF37; border: none;">Agenda tu cita</a>
+
       <!-- Si SÍ ha iniciado sesión y es Cliente -->
-      <a *ngIf="usuarioLogueado && !esAdmin" routerLink="/panel-cliente" class="btn text-white fw-bold shadow-sm" style="background-color: #198754; border: none;">Ir a mi Panel ✨</a>
-      
+      <a *ngIf="usuarioLogueado && !esAdmin" routerLink="/panel-cliente" class="btn text-white fw-bold shadow-sm"
+        style="background-color: #198754; border: none;">Ir a mi Panel ✨</a>
+
       <!-- Si SÍ ha iniciado sesión y es Admin -->
-      <a *ngIf="usuarioLogueado && esAdmin" routerLink="/admin" class="btn text-white fw-bold shadow-sm" style="background-color: #0d6efd; border: none;">Panel Admin ⚙️</a>
+      <a *ngIf="usuarioLogueado && esAdmin" routerLink="/admin" class="btn text-white fw-bold shadow-sm"
+        style="background-color: #0d6efd; border: none;">Panel Admin ⚙️</a>
 
     </div>
   </div>
 </nav>
 
 <!-- HERO -->
-<header class="text-white text-center" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2000'); background-size: cover; background-position: center; height: 90vh; display: flex; align-items: center; justify-content: center;">
+<header class="text-white text-center"
+  style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=2000'); background-size: cover; background-position: center; height: 90vh; display: flex; align-items: center; justify-content: center;">
   <div class="container">
     <h1 class="display-2 fw-bold mb-3">Creamos tu visión, juntos.</h1>
-    <p class="lead mb-4">Agenda una asesoría personalizada y hablemos sobre cómo convertir tus ideas en el evento que siempre soñaste.</p>
-    
+    <p class="lead mb-4">Agenda una asesoría personalizada y hablemos sobre cómo convertir tus ideas en el evento que
+      siempre soñaste.</p>
+
     <!-- BOTÓN CENTRAL INTELIGENTE -->
     <div class="mt-2">
       <!-- Si NO ha iniciado sesión -->
-      <a *ngIf="!usuarioLogueado" routerLink="/login" class="btn btn-lg px-5 shadow-lg" style="background-color: #D4AF37; color: white; border: none;">Hablemos sobre tu evento</a>
-      
+      <a *ngIf="!usuarioLogueado" routerLink="/login" class="btn btn-lg px-5 shadow-lg"
+        style="background-color: #D4AF37; color: white; border: none;">Hablemos sobre tu evento</a>
+
       <!-- Si SÍ ha iniciado sesión y es Cliente -->
-      <a *ngIf="usuarioLogueado && !esAdmin" routerLink="/panel-cliente" class="btn btn-lg px-5 shadow-lg fw-bold" style="background-color: #198754; color: white; border: none;">Ir a mi Panel ✨</a>
-      
+      <a *ngIf="usuarioLogueado && !esAdmin" routerLink="/panel-cliente" class="btn btn-lg px-5 shadow-lg fw-bold"
+        style="background-color: #198754; color: white; border: none;">Ir a mi Panel ✨</a>
+
       <!-- Si SÍ ha iniciado sesión y es Admin -->
-      <a *ngIf="usuarioLogueado && esAdmin" routerLink="/admin" class="btn btn-lg px-5 shadow-lg fw-bold" style="background-color: #0d6efd; color: white; border: none;">Panel Administradora ⚙️</a>
+      <a *ngIf="usuarioLogueado && esAdmin" routerLink="/admin" class="btn btn-lg px-5 shadow-lg fw-bold"
+        style="background-color: #0d6efd; color: white; border: none;">Panel Administradora ⚙️</a>
     </div>
 
   </div>
@@ -49,7 +61,8 @@
       <div class="col-md-6"><img src="assets/matrimonio.jpg" class="img-servicio" alt="Matrimonio"></div>
       <div class="col-md-6 p-4">
         <h3 class="fw-bold">Matrimonios</h3>
-        <p>Diseñamos cada detalle para reflejar su historia de amor. Desde la ceremonia hasta la recepción, coordinamos la logística, decoración y estilo para que solo disfruten de su día más especial.</p>
+        <p>Diseñamos cada detalle para reflejar su historia de amor. Desde la ceremonia hasta la recepción, coordinamos
+          la logística, decoración y estilo para que solo disfruten de su día más especial.</p>
       </div>
     </div>
 
@@ -58,7 +71,8 @@
       <div class="col-md-6"><img src="assets/quinceanos.jpg" class="img-servicio" alt="Quinceañeros"></div>
       <div class="col-md-6 p-4">
         <h3 class="fw-bold">Quinceañeros</h3>
-        <p>Creamos una celebración inolvidable, moderna y adaptada a la personalidad de la cumpleañera. Nos enfocamos en tendencias, temática personalizada y una coordinación impecable.</p>
+        <p>Creamos una celebración inolvidable, moderna y adaptada a la personalidad de la cumpleañera. Nos enfocamos en
+          tendencias, temática personalizada y una coordinación impecable.</p>
       </div>
     </div>
 
@@ -67,7 +81,8 @@
       <div class="col-md-6"><img src="assets/50anos.jpg" class="img-servicio" alt="50 Años"></div>
       <div class="col-md-6 p-4">
         <h3 class="fw-bold">50 Años</h3>
-        <p>Celebramos medio siglo de vida con la elegancia y distinción que la ocasión merece. Un evento sofisticado, con atención personalizada para ti y tus invitados más cercanos.</p>
+        <p>Celebramos medio siglo de vida con la elegancia y distinción que la ocasión merece. Un evento sofisticado,
+          con atención personalizada para ti y tus invitados más cercanos.</p>
       </div>
     </div>
   </div>
@@ -108,6 +123,8 @@
 
 <!-- FOOTER -->
 <footer class="bg-dark text-white py-4 text-center">
-  <div class="mb-2"><h5 style="color: #D4AF37;">INARA</h5></div>
+  <div class="mb-2">
+    <h5 style="color: #D4AF37;">INARA</h5>
+  </div>
   <p>© 2026 INARA - Tu visión, nuestro compromiso | Hablemos sobre tu evento</p>
 </footer>

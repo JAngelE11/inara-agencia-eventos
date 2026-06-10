@@ -8,7 +8,7 @@ import { Auth, onAuthStateChanged } from '@angular/fire/auth';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './inicio.html',
-  styleUrl: './inicio.css'
+  styleUrl: './inicio.css',
 })
 export class Inicio implements OnInit {
   private auth = inject(Auth);
@@ -23,7 +23,7 @@ export class Inicio implements OnInit {
       if (user) {
         this.usuarioLogueado = true;
         // Si es tu correo, sabe que eres la jefa
-        this.esAdmin = (user.email === 'admin@inara.com'); 
+        this.esAdmin = user.email === 'admin@inara.com';
       } else {
         this.usuarioLogueado = false;
         this.esAdmin = false;

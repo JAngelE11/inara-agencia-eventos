@@ -1,0 +1,29 @@
+/* Logo clickeable */
+.logo-inara {
+  transition: all 0.25s ease;
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+.logo-inara:hover {
+  transform: translateY(-2px);
+  background-color: rgba(25, 135, 84, 0.08);
+}
+
+.logo-inara h3 {
+  transition: all 0.25s ease;
+}
+
+.logo-inara:hover h3 {
+  color: #146c43 !important;
+}
+
+.logo-inara:hover .border-start {
+  border-color: #198754 !important;
+}
+
+.logo-inara:hover {
+  transform: translateY(-2px);
+  background-color: rgba(25, 135, 84, 0.08);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.15);
+}
