@@ -17,7 +17,7 @@
 
       <div class="mb-3 text-start">
         <label class="form-label fw-bold text-secondary small">Número de Celular</label>
-        <input type="tel" class="form-control" placeholder="Ej. 999888777" [(ngModel)]="celular" name="celular" pattern="[0-9]{9}" maxlength="9" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+        <input type="tel" class="form-control" placeholder="Ej. 999888777" [(ngModel)]="celular" name="celular" pattern="9[0-9]{8}" maxlength="9" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
       </div>
       
       <div class="mb-3 text-start">

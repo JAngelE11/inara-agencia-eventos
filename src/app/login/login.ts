@@ -45,7 +45,6 @@ export class Login implements OnInit {
       Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Por favor, ingresa tu correo y contraseña.', confirmButtonColor: '#198754' });
       return;
     }
-
     Swal.fire({ title: 'Iniciando sesión...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
     try {
@@ -53,11 +52,11 @@ export class Login implements OnInit {
       this.redireccionarSegunRol(userCredential.user.uid);
     } catch (error: any) {
       if (error.code === 'auth/invalid-email' || error.code === 'auth/user-not-found') {
-        Swal.fire({ icon: 'error', title: 'Oops...', text: 'El correo electrónico ingresado no está registrado o el formato es incorrecto.', confirmButtonColor: '#d33' });
+        Swal.fire({ icon: 'error', title: 'Oops...', text: 'El correo electrónico no está registrado o es incorrecto.', confirmButtonColor: '#d33' });
       } else if (error.code === 'auth/wrong-password') {
-        Swal.fire({ icon: 'error', title: 'Oops...', text: 'La contraseña ingresada es incorrecta. Verifica tus datos de acceso.', confirmButtonColor: '#d33' });
+        Swal.fire({ icon: 'error', title: 'Oops...', text: 'La contraseña ingresada es incorrecta.', confirmButtonColor: '#d33' });
       } else {
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un problema de conexión. Inténtalo de nuevo más tarde.', confirmButtonColor: '#d33' });
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un problema de conexión.', confirmButtonColor: '#d33' });
       }
     }
   }
@@ -83,9 +82,7 @@ export class Login implements OnInit {
           fechaRegistro: new Date().toISOString()
         });
       }
-
       this.redireccionarSegunRol(user.uid);
-
     } catch (error) {
       console.error(error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo iniciar sesión con Google.', confirmButtonColor: '#d33' });
@@ -96,7 +93,6 @@ export class Login implements OnInit {
     try {
       const docRef = doc(this.firestore, 'usuarios', uid);
       const docSnap = await getDoc(docRef);
-      
       Swal.close(); 
 
       if (docSnap.exists() && docSnap.data()['rol'] === 'admin') {
@@ -114,23 +110,22 @@ export class Login implements OnInit {
     const { value: email } = await Swal.fire({
       title: 'Recuperar contraseña',
       input: 'email',
-      inputLabel: 'Ingresa tu correo electrónico registrado',
+      inputLabel: 'Ingresa tu correo',
       inputPlaceholder: 'correo@ejemplo.com',
       showCancelButton: true,
       confirmButtonText: 'Enviar enlace',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#198754',
-      cancelButtonColor: '#6c757d'
+      confirmButtonColor: '#198754'
     });
 
     if (email) {
       Swal.fire({ title: 'Enviando correo...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
       try {
         await sendPasswordResetEmail(this.auth, email);
-        Swal.fire({ icon: 'success', title: '¡Correo enviado!', text: 'Revisa tu bandeja de entrada o spam. Te hemos enviado un enlace para cambiar tu contraseña.', confirmButtonColor: '#198754' });
+        Swal.fire({ icon: 'success', title: '¡Correo enviado!', text: 'Revisa tu bandeja de entrada o spam.', confirmButtonColor: '#198754' });
       } catch (error) {
         console.error(error);
-        Swal.fire({ icon: 'error', title: 'Error', text: 'No pudimos encontrar ese correo o hubo un problema. Inténtalo de nuevo.', confirmButtonColor: '#d33' });
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No pudimos encontrar ese correo. Inténtalo de nuevo.', confirmButtonColor: '#d33' });
       }
     }
   }
