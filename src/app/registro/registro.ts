@@ -91,7 +91,7 @@ export class Registro {
       Swal.fire({ 
         icon: 'success', 
         title: '¡Registro Exitoso! 🎉', 
-        html: 'Tu cuenta ha sido creada correctamente.<br><br><small class="text-muted"><b>Nota importante:</b> Cuando reserves una cita, te llegarán los detalles de confirmación al correo. Si tu cuenta no es Gmail, recuerda minunciosamente revisar tu bandeja de correo no deseado o spam.</small>', 
+        html: 'Tu cuenta ha sido creada correctamente.<br><br><small class="text-muted"><b>Importante:</b> Al reservar una cita, los detalles se enviarán a tu correo. Recuerda revisar tu bandeja de spam.</small>', 
         confirmButtonColor: '#198754', 
         confirmButtonText: 'Ir a mi panel ✨' 
       }).then(() => {
