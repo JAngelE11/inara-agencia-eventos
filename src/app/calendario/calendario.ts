@@ -240,6 +240,31 @@ export class Calendario implements OnInit {
       console.error('Error al validar concurrencia:', error);
     }
 
+    // ✅ MOSTRAR RESUMEN ANTES DE PROCESAR
+    const confirmacion = await Swal.fire({
+      title: 'Resumen de tu Reserva',
+      html: `
+        <div class="text-start fs-6 mt-3 px-3">
+          <p class="mb-2"><strong>📅 Fecha:</strong> ${fechaCompleta}</p>
+          <p class="mb-2"><strong>⏰ Hora:</strong> ${this.horaSeleccionada}</p>
+          <p class="mb-2"><strong>🎉 Evento:</strong> ${this.tipoEvento}</p>
+          <p class="mb-2"><strong>🤝 Modalidad:</strong> ${this.modalidad}</p>
+          <p class="mb-0"><strong>📝 Detalles:</strong> ${this.comentariosCliente || 'Ninguno'}</p>
+        </div>
+      `,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Confirmar Reserva',
+      cancelButtonText: 'Regresar a editar'
+    });
+
+    // Si el usuario decide regresar a editar, salimos de la función
+    if (!confirmacion.isConfirmed) {
+      return;
+    }
+
     Swal.fire({ title: 'Procesando reserva...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     try {

@@ -232,8 +232,17 @@ export class PanelCliente implements OnInit {
 
     if (result.isDenied) {
       const confirmCancel = await Swal.fire({
-        title: '¿Estás seguro?',
-        text: 'Al cancelar, perderás tu horario y otra persona podría tomarlo.',
+        title: '¿Estás seguro de cancelar la cita?',
+        html: `
+          <div class="text-start fs-6 mt-3 px-3">
+            <p class="mb-2"><strong>📅 Fecha:</strong> ${cita.fechaAsignada}</p>
+            <p class="mb-2"><strong>⏰ Hora:</strong> ${cita.horaAsignada}</p>
+            <p class="mb-2"><strong>🎉 Evento:</strong> ${cita.tipoEvento}</p>
+            <p class="mb-3"><strong>🤝 Modalidad:</strong> ${cita.modalidad}</p>
+            <hr>
+            <p class="text-danger fw-bold mb-0">Al cancelar perderás este horario y otra persona podría reservarlo.</p>
+          </div>
+        `,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc3545',
