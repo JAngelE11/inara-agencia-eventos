@@ -39,7 +39,9 @@ export class Admin implements OnInit {
   terminoBusqueda: string = '';
   filtroEvento: string = '';
   filtroFecha: string = 'todos';
-  mesEspecifico: string = ''; // <--- NUEVA VARIABLE PARA EL FILTRO
+  diaEspecifico: string = ''; // <--- FILTRO: DÍA ESPECÍFICO
+  fechaInicio: string = '';   // <--- FILTRO: RANGO (INICIO)
+  fechaFin: string = '';      // <--- FILTRO: RANGO (FIN)
 
   nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -192,7 +194,16 @@ export class Admin implements OnInit {
       
       let cumpleFecha = true;
       const fechaHoy = new Date();
-      const hoyFormateado = this.formatearFecha(fechaHoy.toISOString().split('T')[0]);
+
+      const hoyLocal = new Date();
+      hoyLocal.setMinutes(hoyLocal.getMinutes() - hoyLocal.getTimezoneOffset());
+      const hoyFormateado = this.formatearFecha(hoyLocal.toISOString().split('T')[0]);
+
+      const mananaLocal = new Date();
+      mananaLocal.setDate(mananaLocal.getDate() + 1);
+      mananaLocal.setMinutes(mananaLocal.getMinutes() - mananaLocal.getTimezoneOffset());
+      const mananaFormateado = this.formatearFecha(mananaLocal.toISOString().split('T')[0]);
+
       const mesActualNombre = this.nombresMeses[fechaHoy.getMonth()];
       const anioActualStr = fechaHoy.getFullYear().toString();
 
@@ -206,6 +217,8 @@ export class Admin implements OnInit {
 
       if (this.filtroFecha === 'hoy') {
         cumpleFecha = reserva.fechaAsignada === hoyFormateado;
+      } else if (this.filtroFecha === 'manana') {
+        cumpleFecha = reserva.fechaAsignada === mananaFormateado;
       } else if (this.filtroFecha === 'semana') {
         if (!reserva.fechaAsignada) {
           cumpleFecha = false;
@@ -224,13 +237,25 @@ export class Admin implements OnInit {
         }
       } else if (this.filtroFecha === 'mes') {
         cumpleFecha = reserva.fechaAsignada?.toLowerCase().includes(mesActualNombre) && reserva.fechaAsignada?.includes(anioActualStr);
-      } else if (this.filtroFecha === 'mes_especifico' && this.mesEspecifico) {
-        const partesMes = this.mesEspecifico.split('-'); 
-        if(partesMes.length === 2) {
-          const anioEsp = partesMes[0];
-          const mesEspIndex = parseInt(partesMes[1]) - 1;
-          const nombreMesEsp = this.nombresMeses[mesEspIndex];
-          cumpleFecha = reserva.fechaAsignada?.toLowerCase().includes(nombreMesEsp) && reserva.fechaAsignada?.includes(anioEsp);
+      } else if (this.filtroFecha === 'dia_especifico' && this.diaEspecifico) {
+        cumpleFecha = reserva.fechaAsignada === this.formatearFecha(this.diaEspecifico);
+      } else if (this.filtroFecha === 'rango' && this.fechaInicio && this.fechaFin) {
+        if (!reserva.fechaAsignada) {
+          cumpleFecha = false;
+        } else {
+          try {
+            const partes = reserva.fechaAsignada.split(' de ');
+            const dia = parseInt(partes[0]);
+            const mesStr = partes[1].toLowerCase();
+            const anio = parseInt(partes[2]);
+            const mesIdx = this.nombresMeses.indexOf(mesStr);
+            const dCita = new Date(anio, mesIdx, dia).getTime();
+            
+            const dInicio = new Date(this.fechaInicio + 'T00:00:00').getTime();
+            const dFin = new Date(this.fechaFin + 'T23:59:59').getTime();
+            
+            cumpleFecha = dCita >= dInicio && dCita <= dFin;
+          } catch (e) { cumpleFecha = false; }
         }
       } else if (this.filtroFecha === 'anio') {
         cumpleFecha = reserva.fechaAsignada?.includes(anioActualStr);
@@ -339,6 +364,14 @@ export class Admin implements OnInit {
               .filter(doc => doc.data()['estado'] !== 'Cancelada')
               .map(doc => doc.data()['horaAsignada']);
               
+            // Lógica para deshabilitar también la hora siguiente (Tiempo de sobra)
+            const horasAfectadas = new Set<string>();
+            horasOcupadas.forEach(h => {
+              horasAfectadas.add(h);
+              const horaInt = parseInt(h.split(':')[0], 10);
+              horasAfectadas.add(`${horaInt + 1}:00`);
+            });
+
             timeOptions.forEach(opt => {
               const input = opt as HTMLInputElement;
               const horaFiltro = parseInt(input.value.split(':')[0], 10);
@@ -346,7 +379,7 @@ export class Admin implements OnInit {
               if (diaSemana === 6 && horaFiltro > 15) {
                 input.disabled = true;
               } else {
-                input.disabled = horasOcupadas.includes(input.value);
+                input.disabled = horasAfectadas.has(input.value);
               }
             });
           } catch (error) {
@@ -354,7 +387,7 @@ export class Admin implements OnInit {
           }
         });
       },
-      preConfirm: () => {
+      preConfirm: async () => {
         const nombre = (document.getElementById('swal-nombre') as HTMLInputElement).value;
         const celular = (document.getElementById('swal-celular') as HTMLInputElement).value;
         const fecha = (document.getElementById('swal-fecha') as HTMLInputElement).value;
@@ -364,24 +397,65 @@ export class Admin implements OnInit {
         const horaSeleccionada = document.querySelector('input[name="swal-hora"]:checked') as HTMLInputElement;
         const hora = horaSeleccionada ? horaSeleccionada.value : null;
 
-        if (!nombre || !fecha || !hora) { Swal.showValidationMessage('Nombre, fecha y hora son obligatorios.'); return; }
-        if (nombre.trim().length < 2) { Swal.showValidationMessage('El nombre debe tener al menos 2 caracteres.'); return; }
-        if (!/^9[0-9]{8}$/.test(celular)) { Swal.showValidationMessage('El celular debe ser válido (9 dígitos y empezar con 9).'); return; }
-        if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return; }
+        if (!nombre || !fecha || !hora) { Swal.showValidationMessage('Nombre, fecha y hora son obligatorios.'); return false; }
+        if (nombre.trim().length < 2) { Swal.showValidationMessage('El nombre debe tener al menos 2 caracteres.'); return false; }
+        if (!/^9[0-9]{8}$/.test(celular)) { Swal.showValidationMessage('El celular debe ser válido (9 dígitos y empezar con 9).'); return false; }
+        if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return false; }
+
+        // VALIDACIÓN Y ACTUALIZACIÓN DE CLIENTE EXISTENTE
+        const nombreIngresado = nombre.trim().toLowerCase();
+        const clienteMismoCelular = this.clientes.find(c => c.celular === celular);
+        const clienteMismoNombre = this.clientes.find(c => {
+            const nom = (c.nombre || '').trim().toLowerCase();
+            const ape = (c.apellidos || '').trim().toLowerCase();
+            return `${nom} ${ape}`.trim() === nombreIngresado || nom === nombreIngresado;
+        });
+
+        if (clienteMismoCelular && (!clienteMismoNombre || clienteMismoCelular.id !== clienteMismoNombre.id)) {
+            Swal.showValidationMessage(`El celular ingresado ya le pertenece a otro cliente registrado. Usa otro número.`);
+            return false;
+        }
+
+        let idClienteAActualizar = null;
+        if (clienteMismoNombre && clienteMismoNombre.celular !== celular) {
+            idClienteAActualizar = clienteMismoNombre.id;
+        }
+
+        // VALIDACIÓN EN TIEMPO REAL (Con la hora anterior bloqueando la actual)
+        const fechaFormateada = this.formatearFecha(fecha);
+        const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora)));
+        const ocupadasDB = checkSnapshot.docs.filter(doc => doc.data()['estado'] !== 'Cancelada').map(doc => doc.data()['horaAsignada']);
+        
+        const horaSeleccionadaInt = parseInt(hora.split(':')[0], 10);
+        const horaAnterior = `${horaSeleccionadaInt - 1}:00`;
+
+        if (ocupadasDB.includes(hora) || ocupadasDB.includes(horaAnterior)) { 
+            Swal.showValidationMessage('¡Lo sentimos! Este horario o su turno previo acaban de ser ocupados.'); 
+            return false; 
+        }
 
         return {
-          nombre, apellidos: '', celular, correo: '',
-          fechaAsignada: this.formatearFecha(fecha), horaAsignada: hora,
-          tipoEvento: tipo, modalidad, comentarios: comentarios || 'Sin comentarios',
-          estado: 'Confirmada', 
-          codigoReserva: 'MAN-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-          fechaRegistro: new Date().toISOString()
+          datosReserva: {
+            nombre, apellidos: '', celular, correo: '',
+            fechaAsignada: fechaFormateada, horaAsignada: hora,
+            tipoEvento: tipo, modalidad, comentarios: comentarios || 'Sin comentarios',
+            estado: 'Confirmada', 
+            codigoReserva: 'MAN-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
+            fechaRegistro: new Date().toISOString()
+          },
+          idClienteAActualizar
         };
       }
     });
 
     if (formValues) {
-      await addDoc(collection(this.firestore, 'reservas'), formValues);
+      await addDoc(collection(this.firestore, 'reservas'), formValues.datosReserva);
+      
+      if (formValues.idClienteAActualizar) {
+        await updateDoc(doc(this.firestore, 'usuarios', formValues.idClienteAActualizar), { celular: formValues.datosReserva.celular });
+        this.cargarClientes(); 
+      }
+
       Swal.fire('¡Reservado!', 'La cita ha sido registrada.', 'success');
       this.cargarDatos();
     }
@@ -394,33 +468,123 @@ export class Admin implements OnInit {
   }
 
   async reprogramarCita(reserva: any) {
+    // Ajuste para la fecha mínima del input basada en la hora local
+    const hoyLocal = new Date();
+    hoyLocal.setMinutes(hoyLocal.getMinutes() - hoyLocal.getTimezoneOffset());
+    const minDate = hoyLocal.toISOString().split('T')[0];
+
     const { value: formValues } = await Swal.fire({
       title: 'Reprogramar Cita',
       html: `
         <div class="text-start px-3">
-          <input id="repro-fecha" type="date" class="swal2-input w-100 m-0 mb-3" min="${new Date().toISOString().split('T')[0]}">
-          <select id="repro-hora" class="swal2-select w-100 m-0">
-            <option value="10:00">10:00 AM</option>
-            <option value="11:00">11:00 AM</option>
-            <option value="12:00">12:00 MD</option>
-            <option value="13:00">13:00 PM</option>
-            <option value="14:00">14:00 PM</option>
-            <option value="15:00">15:00 PM</option>
-            <option value="16:00">16:00 PM</option>
-            <option value="17:00">17:00 PM</option>
-            <option value="18:00">18:00 PM</option>
+          <label class="form-label fw-bold text-secondary small">Selecciona la nueva fecha:</label>
+          <input id="repro-fecha" type="date" class="form-control mb-3" min="${minDate}">
+          <label class="form-label fw-bold text-secondary small">Horarios disponibles:</label>
+          <select id="repro-hora" class="form-select m-0" disabled>
+            <option value="">Primero elige una fecha...</option>
           </select>
         </div>
       `,
       showCancelButton: true,
+      confirmButtonText: 'Actualizar',
+      confirmButtonColor: '#198754',
+      didOpen: () => {
+        const fechaInput = document.getElementById('repro-fecha') as HTMLInputElement;
+        const horaSelect = document.getElementById('repro-hora') as HTMLSelectElement;
+
+        fechaInput.addEventListener('change', async () => {
+          if (!fechaInput.value) {
+            horaSelect.disabled = true;
+            horaSelect.innerHTML = '<option value="">Primero elige una fecha...</option>';
+            return;
+          }
+
+          if (this.esDiaFeriadoODomingo(fechaInput.value)) {
+            horaSelect.disabled = true;
+            horaSelect.innerHTML = '<option value="">Cerrado (Feriado o Domingo)</option>';
+            return;
+          }
+
+          horaSelect.disabled = true;
+          horaSelect.innerHTML = '<option value="">Buscando disponibilidad...</option>';
+
+          const fechaFormateada = this.formatearFecha(fechaInput.value);
+
+          try {
+            const reservasRef = collection(this.firestore, 'reservas');
+            const q = query(reservasRef, where('fechaAsignada', '==', fechaFormateada));
+            const querySnapshot = await getDocs(q);
+            
+            const horasOcupadas = querySnapshot.docs
+              .filter(doc => doc.data()['estado'] !== 'Cancelada')
+              .map(doc => doc.data()['horaAsignada']);
+              
+            // Lógica para deshabilitar hora siguiente
+            const horasAfectadas = new Set<string>();
+            horasOcupadas.forEach(h => {
+              horasAfectadas.add(h);
+              const horaInt = parseInt(h.split(':')[0], 10);
+              horasAfectadas.add(`${horaInt + 1}:00`);
+            });
+
+            const horasTotales = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+            
+            horaSelect.innerHTML = '';
+            let hayDisponibles = false;
+
+            const diaSemana = new Date(fechaInput.value + 'T00:00:00').getDay();
+
+            horasTotales.forEach(hora => {
+              const option = document.createElement('option');
+              option.value = hora;
+              option.text = hora;
+              const horaInt = parseInt(hora.split(':')[0], 10);
+              
+              if (diaSemana === 6 && horaInt > 15) {
+                 option.disabled = true;
+                 option.text = `${hora} (Sábado tarde cerrado)`;
+                 option.style.color = '#dc3545';
+              } else if (horasAfectadas.has(hora)) {
+                option.disabled = true;
+                option.text = `${hora} (Ocupado)`;
+                option.style.color = '#dc3545';
+              } else {
+                hayDisponibles = true;
+              }
+              horaSelect.appendChild(option);
+            });
+
+            if (!hayDisponibles) {
+              horaSelect.innerHTML = '<option value="">Día completamente lleno</option>';
+            } else {
+              horaSelect.disabled = false;
+            }
+          } catch (error) {
+            console.error("Error al buscar disponibilidad", error);
+            horaSelect.innerHTML = '<option value="">Error de conexión</option>';
+          }
+        });
+      },
       preConfirm: async () => {
         const fecha = (document.getElementById('repro-fecha') as HTMLInputElement).value;
-        const hora = (document.getElementById('repro-hora') as HTMLInputElement).value;
-        if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir fecha y hora'); return; }
-        if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return; }
+        const hora = (document.getElementById('repro-hora') as HTMLSelectElement).value;
+        if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir una fecha y un horario disponible'); return false; }
+        if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return false; }
+        
         const fechaFormateada = this.formatearFecha(fecha);
+        
+        // VALIDACIÓN EN TIEMPO REAL (Con la hora anterior bloqueando la actual)
         const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora)));
-        if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }
+        const ocupadasDB = checkSnapshot.docs.filter(doc => doc.data()['estado'] !== 'Cancelada' && doc.id !== reserva.id).map(doc => doc.data()['horaAsignada']);
+        
+        const horaSeleccionadaInt = parseInt(hora.split(':')[0], 10);
+        const horaAnterior = `${horaSeleccionadaInt - 1}:00`;
+
+        if (ocupadasDB.includes(hora) || ocupadasDB.includes(horaAnterior)) { 
+          Swal.showValidationMessage('¡Lo sentimos! Este horario o su turno previo acaban de ser ocupados.'); 
+          return false; 
+        }
+        
         return { fechaAsignada: fechaFormateada, horaAsignada: hora };
       }
     });

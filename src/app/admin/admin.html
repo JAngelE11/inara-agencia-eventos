@@ -234,23 +234,33 @@
 
           <label class="form-label small fw-bold text-secondary">📅 Tiempo</label>
 
-          <select class="form-select form-select-sm bg-white" [(ngModel)]="filtroFecha" [ngClass]="{'mb-1': filtroFecha === 'mes_especifico'}">
+          <select class="form-select form-select-sm bg-white" [(ngModel)]="filtroFecha" (change)="aplicarFiltros()">
 
-            <option value="todos">Todos</option>
+            <option value="todos">Todas las Fechas</option>
 
             <option value="hoy">Hoy</option>
 
-            <option value="semana">Semana Actual</option>
+            <option value="manana">Mañana</option>
 
-            <option value="mes">Mes Actual</option>
+            <option value="semana">Esta Semana</option>
 
-            <option value="mes_especifico">Mes Específico...</option>
+            <option value="mes">Este Mes</option>
 
-            <option value="anio">Año en Curso</option>
+            <option value="dia_especifico">Día Específico</option>
+
+            <option value="rango">Rango de Fechas</option>
+
+            <option value="anio">Este Año</option>
 
           </select>
 
-          <input *ngIf="filtroFecha === 'mes_especifico'" type="month" class="form-control form-control-sm border-success shadow-sm" [(ngModel)]="mesEspecifico">
+          <div *ngIf="filtroFecha === 'dia_especifico'" class="mt-1">
+            <input type="date" class="form-control form-control-sm border-success shadow-sm" [(ngModel)]="diaEspecifico" (change)="aplicarFiltros()">
+          </div>
+          <div *ngIf="filtroFecha === 'rango'" class="mt-1 d-flex gap-1">
+            <input type="date" class="form-control form-control-sm border-success shadow-sm" [(ngModel)]="fechaInicio" (change)="aplicarFiltros()">
+            <input type="date" class="form-control form-control-sm border-success shadow-sm" [(ngModel)]="fechaFin" (change)="aplicarFiltros()">
+          </div>
 
         </div>
 

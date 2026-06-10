@@ -31,18 +31,52 @@ export class PanelCliente implements OnInit {
   nuevoNombre: string = '';
   nuevoApellidos: string = '';
   nuevoCelular: string = '';
+  
+  configuracion: any = {
+    horaInicio: '10:00',
+    horaFin: '18:00',
+    diasFeriados: ''
+  };
 
   ngOnInit() {
     onAuthStateChanged(this.auth, async (user) => {
       if (user) {
         this.usuarioId = user.uid;
         this.correoCliente = user.email || '';
+        await this.cargarConfiguracion();
         await this.cargarPerfil();
         await this.cargarReservas();
       } else {
         this.router.navigate(['/login']);
       }
     });
+  }
+
+  async cargarConfiguracion() {
+    try {
+      const configRef = doc(this.firestore, 'configuracion', 'general');
+      const docSnap = await getDoc(configRef);
+      if (docSnap.exists()) {
+        this.configuracion = docSnap.data();
+      }
+    } catch (error) {
+      console.error("Error cargando config", error);
+    }
+  }
+
+  esDiaFeriadoODomingo(fechaISO: string): boolean {
+    if (!fechaISO) return false;
+    const partes = fechaISO.split('-');
+    const anio = partes[0];
+    const mes = partes[1];
+    const dia = partes[2];
+    const formatoNumerico = `${dia}/${mes}/${anio}`;
+
+    const d = new Date(Number(anio), Number(mes) - 1, Number(dia));
+    if (d.getDay() === 0) return true;
+
+    const feriados = (this.configuracion && this.configuracion.diasFeriados) ? String(this.configuracion.diasFeriados).split(',').map((f: string) => f.trim()) : [];
+    return feriados.includes(formatoNumerico);
   }
 
   async cargarPerfil() {
@@ -82,10 +116,44 @@ export class PanelCliente implements OnInit {
     }
   }
 
+  // ✅ FILTROS EN TIEMPO REAL PARA LOS INPUTS
+  filtrarNombre() {
+    this.nuevoNombre = this.nuevoNombre.replace(/[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ]/g, '');
+  }
+
+  filtrarApellidos() {
+    this.nuevoApellidos = this.nuevoApellidos.replace(/[^a-zA-Z\sñÑáéíóúÁÉÍÓÚ]/g, '');
+  }
+
+  filtrarCelular() {
+    // Solo permite números y recorta el texto a un máximo de 9 dígitos
+    this.nuevoCelular = this.nuevoCelular.replace(/[^0-9]/g, '').slice(0, 9);
+  }
+
   // ✅ ALERTA DE GUARDAR PERFIL
   async guardarPerfil() {
-    if (!this.nuevoNombre.trim() || !this.nuevoCelular.trim()) {
-      Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'El nombre y el celular no pueden estar vacíos.', confirmButtonColor: '#198754' });
+    if (!this.nuevoNombre.trim() || !this.nuevoApellidos.trim() || !this.nuevoCelular.trim()) {
+      Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'Todos los campos son obligatorios.', confirmButtonColor: '#198754' });
+      return;
+    }
+
+    // Regex para validar solo letras (incluye espacios, tildes y la letra ñ)
+    const regexNombres = /^[a-zA-Z\sñÑáéíóúÁÉÍÓÚ]+$/;
+    
+    if (!regexNombres.test(this.nuevoNombre)) {
+      Swal.fire({ icon: 'warning', title: 'Nombre inválido', text: 'El nombre solo puede contener letras.', confirmButtonColor: '#198754' });
+      return;
+    }
+
+    if (!regexNombres.test(this.nuevoApellidos)) {
+      Swal.fire({ icon: 'warning', title: 'Apellidos inválidos', text: 'Los apellidos solo pueden contener letras.', confirmButtonColor: '#198754' });
+      return;
+    }
+
+    // Regex para validar celular: inicia con 9 y tiene exactamente 9 dígitos
+    const regexCelular = /^9\d{8}$/;
+    if (!regexCelular.test(this.nuevoCelular)) {
+      Swal.fire({ icon: 'warning', title: 'Celular inválido', text: 'El número de celular debe tener exactamente 9 dígitos y empezar con 9.', confirmButtonColor: '#198754' });
       return;
     }
     
@@ -187,40 +255,132 @@ export class PanelCliente implements OnInit {
         }
       }
     } else if (result.isConfirmed) {
+      
+      // Ajuste para la fecha mínima del input basada en la hora local
+      const hoyLocal = new Date();
+      hoyLocal.setMinutes(hoyLocal.getMinutes() - hoyLocal.getTimezoneOffset());
+      const minDate = hoyLocal.toISOString().split('T')[0];
+
       const { value: formValues } = await Swal.fire({
         title: 'Reprogramar Cita',
         html: `
           <div class="text-start px-3">
-            <input id="repro-fecha" type="date" class="swal2-input w-100 m-0 mb-3" min="${new Date().toISOString().split('T')[0]}">
-            <select id="repro-hora" class="swal2-select w-100 m-0">
-              <option value="10:00">10:00 AM</option>
-              <option value="11:00">11:00 AM</option>
-              <option value="12:00">12:00 MD</option>
-              <option value="13:00">13:00 PM</option>
-              <option value="14:00">14:00 PM</option>
-              <option value="15:00">15:00 PM</option>
-              <option value="16:00">16:00 PM</option>
-              <option value="17:00">17:00 PM</option>
-              <option value="18:00">18:00 PM</option>
+            <label class="form-label fw-bold text-secondary small">Selecciona la nueva fecha:</label>
+            <input id="repro-fecha" type="date" class="form-control mb-3" min="${minDate}">
+            <label class="form-label fw-bold text-secondary small">Horarios disponibles:</label>
+            <select id="repro-hora" class="form-select m-0" disabled>
+              <option value="">Primero elige una fecha...</option>
             </select>
           </div>
         `,
         showCancelButton: true,
         confirmButtonText: 'Actualizar',
         confirmButtonColor: '#198754',
+        didOpen: () => {
+          const fechaInput = document.getElementById('repro-fecha') as HTMLInputElement;
+          const horaSelect = document.getElementById('repro-hora') as HTMLSelectElement;
+
+          fechaInput.addEventListener('change', async () => {
+            if (!fechaInput.value) {
+              horaSelect.disabled = true;
+              horaSelect.innerHTML = '<option value="">Primero elige una fecha...</option>';
+              return;
+            }
+
+            if (this.esDiaFeriadoODomingo(fechaInput.value)) {
+              horaSelect.disabled = true;
+              horaSelect.innerHTML = '<option value="">Cerrado (Feriado o Domingo)</option>';
+              return;
+            }
+
+            horaSelect.disabled = true;
+            horaSelect.innerHTML = '<option value="">Buscando disponibilidad...</option>';
+
+            const partes = fechaInput.value.split('-');
+            const anio = parseInt(partes[0]);
+            const mesIndex = parseInt(partes[1]) - 1;
+            const dia = parseInt(partes[2]);
+            const nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            const fechaFormateada = `${dia} de ${nombresMeses[mesIndex]} de ${anio}`;
+
+            try {
+              const reservasRef = collection(this.firestore, 'reservas');
+              const q = query(reservasRef, where('fechaAsignada', '==', fechaFormateada));
+              const querySnapshot = await getDocs(q);
+              
+              // Filtramos la cita actual para no autobloquearnos nuestro propio turno
+              const horasOcupadas = querySnapshot.docs
+                .filter(doc => doc.data()['estado'] !== 'Cancelada' && doc.id !== cita.id)
+                .map(doc => doc.data()['horaAsignada']);
+              
+              const horasAfectadas = new Set<string>();
+              horasOcupadas.forEach(h => {
+                horasAfectadas.add(h);
+                const horaInt = parseInt(h.split(':')[0], 10);
+                horasAfectadas.add(`${horaInt + 1}:00`);
+              });
+
+              const horasTotales = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+              
+              horaSelect.innerHTML = '';
+              let hayDisponibles = false;
+
+              const diaSemana = new Date(fechaInput.value + 'T00:00:00').getDay();
+
+              horasTotales.forEach(hora => {
+                const option = document.createElement('option');
+                option.value = hora;
+                option.text = hora;
+                const horaInt = parseInt(hora.split(':')[0], 10);
+                
+                if (diaSemana === 6 && horaInt > 15) {
+                   option.disabled = true;
+                   option.text = `${hora} (Sábado tarde cerrado)`;
+                   option.style.color = '#dc3545';
+                } else if (horasAfectadas.has(hora)) {
+                  option.disabled = true;
+                  option.text = `${hora} (Ocupado)`;
+                  option.style.color = '#dc3545';
+                } else {
+                  hayDisponibles = true;
+                }
+                horaSelect.appendChild(option);
+              });
+
+              if (!hayDisponibles) {
+                horaSelect.innerHTML = '<option value="">Día completamente lleno</option>';
+              } else {
+                horaSelect.disabled = false;
+              }
+            } catch (error) {
+              console.error("Error al buscar disponibilidad", error);
+              horaSelect.innerHTML = '<option value="">Error de conexión</option>';
+            }
+          });
+        },
         preConfirm: async () => {
           const fecha = (document.getElementById('repro-fecha') as HTMLInputElement).value;
-          const hora = (document.getElementById('repro-hora') as HTMLInputElement).value;
-          if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir fecha y hora'); return; }
+          const hora = (document.getElementById('repro-hora') as HTMLSelectElement).value;
+          if (!fecha || !hora) { Swal.showValidationMessage('Debes elegir una fecha y un horario disponible'); return false; }
+          if (this.esDiaFeriadoODomingo(fecha)) { Swal.showValidationMessage('La fecha elegida es feriado o domingo.'); return false; }
           
           const nombresMeses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
           const partes = fecha.split('-');
           const d = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
           const fechaFormateada = `${d.getDate()} de ${nombresMeses[d.getMonth()]} de ${d.getFullYear()}`;
           
+          // VALIDACIÓN EN TIEMPO REAL: Re-comprobar justo antes de actualizar por si alguien ganó el cupo
           const checkSnapshot = await getDocs(query(collection(this.firestore, 'reservas'), where('fechaAsignada', '==', fechaFormateada), where('horaAsignada', '==', hora)));
-          if (!checkSnapshot.empty) { Swal.showValidationMessage('Este horario ya está ocupado.'); return; }
+          const ocupadasDB = checkSnapshot.docs.filter(doc => doc.data()['estado'] !== 'Cancelada' && doc.id !== cita.id).map(doc => doc.data()['horaAsignada']);
           
+          const horaSeleccionadaInt = parseInt(hora.split(':')[0], 10);
+          const horaAnterior = `${horaSeleccionadaInt - 1}:00`;
+
+          if (ocupadasDB.includes(hora) || ocupadasDB.includes(horaAnterior)) { 
+              Swal.showValidationMessage('¡Lo sentimos! Alguien acaba de reservar este horario o el turno anterior. Por favor, elige otro.'); 
+              return false; 
+          }
+
           return { fechaAsignada: fechaFormateada, horaAsignada: hora };
         }
       });
